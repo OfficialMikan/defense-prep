@@ -758,7 +758,19 @@
             document.getElementById('sidebar-overlay').classList.toggle('active');
         }
 
-        const SECRET_ROUTING_KEY = "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";
+        function getApiKey() {
+            let key = localStorage.getItem('user_api_key');
+            if (!key) {
+                key = prompt("Security Setup: Please enter your Groq API Key to initialize the simulator:");
+                if (key) {
+                    localStorage.setItem('user_api_key', key);
+                } else {
+                    alert("Simulator cannot run without an API key.");
+                    return null;
+                }
+            }
+            return key;
+        }
 
         const studyRepositoryContext = {
             1: {
@@ -836,6 +848,10 @@
         }
 
         async function triggerInterrogation(targetProposalNum) {
+            // 1. Retrieve the key dynamically
+            const SECRET_ROUTING_KEY = getApiKey();
+            if (!SECRET_ROUTING_KEY) return; // Stop if the user cancels the prompt
+
             if (generatedCardsCollection.length >= 25) {
                 alert("Your lesson history is getting very full! You may want to review and Save your best photos, then Reset Levels to keep performance fast.");
             }
@@ -849,7 +865,10 @@
             try {
                 const networkConnection = await fetch("https://api.groq.com/openai/v1/chat/completions", {
                     method: "POST",
-                    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${SECRET_ROUTING_KEY}` },
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${SECRET_ROUTING_KEY}` // Now uses the dynamic key
+                    },
                     body: JSON.stringify({
                         model: "llama-3.3-70b-versatile",
                         messages: [{ role: "user", content: instructionPrompt }],
@@ -872,11 +891,9 @@
                 renderHistoryPanelUI();
                 syncCardDisplaySurface();
 
-                // Automatically open sidebar to show new lesson was added
-                // document.getElementById('main-sidebar').classList.add('active');
-                // document.getElementById('sidebar-overlay').classList.add('active');
             } catch (networkError) {
-                alert("Connection failed. Check API limits or Wi-Fi.");
+                console.error(networkError);
+                alert("Connection failed. Check your API key or internet connection.");
             } finally {
                 screenOverlayLoader.style.display = 'none';
             }
