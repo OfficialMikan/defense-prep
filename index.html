@@ -893,13 +893,11 @@
         } catch (e) { console.error("Local recovery error:", e); }
 
         window.addEventListener('DOMContentLoaded', () => {
-            // ONLY render the UI if history exists; DO NOT trigger logic
+            // JUST render the history list, do not run syncCardDisplaySurface()
             if (generatedCardsCollection.length > 0) {
                 renderHistoryPanelUI();
-                syncCardDisplaySurface();
-            } else {
-                // Explicitly set the "empty" state if no history
-                document.getElementById('frontText').innerText = "Choose a proposal above. The AI will generate a tough panel question for you to practice.";
+                // REMOVED: syncCardDisplaySurface(); 
+                // This stops the card from auto-filling the last question on load
             }
         });
 
@@ -966,8 +964,9 @@
             document.getElementById('flashcard').classList.remove('flipped');
             setTimeout(() => {
                 document.getElementById('frontTag').innerText = cardContext.label;
-                document.getElementById('frontText').innerText = cardContext.question;
-                document.getElementById('backText').innerText = cardContext.answer;
+                document.getElementById('frontText').innerText = "Choose a proposal above. The AI will generate a tough panel question for you to practice.";
+                document.getElementById('backText').innerText = "Your solid defense answer will appear here.";
+                return;
                 document.querySelectorAll('.history-item').forEach((element, DOMIdx) => {
                     element.classList.toggle('active', DOMIdx === executionPointerIndex);
                 });
