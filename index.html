@@ -848,42 +848,37 @@
         }
 
         async function triggerInterrogation(targetProposalNum) {
-            // 1. Retrieve the key dynamically
-            const SECRET_ROUTING_KEY = getApiKey();
-            if (!SECRET_ROUTING_KEY) return; // Stop if the user cancels the prompt
-
+            // 1. Check if history limit reached
             if (generatedCardsCollection.length >= 25) {
-                alert("Your lesson history is getting very full! You may want to review and Save your best photos, then Reset Levels to keep performance fast.");
+                alert("Your lesson history is getting very full! Please Reset Levels to keep performance fast.");
+                return;
             }
-            const response = await fetch("/api", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ prompt: instructionPrompt })
-            });
+
             const screenOverlayLoader = document.getElementById('loader');
             screenOverlayLoader.style.display = 'flex';
 
+            // 2. Prepare the prompt
             const scopeMetadata = studyRepositoryContext[targetProposalNum];
             const instructionPrompt = `You are a tough panel defense judge for high school research. Based on this paper context: "${scopeMetadata.dataDump}", generate ONE very specific, challenging question targeting their methodology, variables, or scope. Provide a flawless, direct answer written in the first-person plural ('We chose...') for the students to use to defend themselves. Output strictly as JSON: {"question": "...", "answer": "..."}`;
 
             try {
-                const networkConnection = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                // 3. Send request to your own server-side bridge
+                // This is safe because your API Key is kept in Vercel's Environment Variables
+                const response = await fetch("/api/chat", {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${SECRET_ROUTING_KEY}` // Now uses the dynamic key
-                    },
-                    body: JSON.stringify({
-                        model: "llama-3.3-70b-versatile",
-                        messages: [{ role: "user", content: instructionPrompt }],
-                        temperature: 0.75,
-                        response_format: { type: "json_object" }
-                    })
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ prompt: instructionPrompt })
                 });
 
-                const parsedPackage = await networkConnection.json();
+                if (!response.ok) throw new Error("Server bridge error");
+
+                const parsedPackage = await response.json();
+
+                // 4. Parse the AI response
+                // Note: Depending on how your API bridge returns data, you may need to adjust this
                 const structuredData = JSON.parse(parsedPackage.choices[0].message.content);
 
+                // 5. Update your app state
                 generatedCardsCollection.push({
                     label: `Title ${targetProposalNum}`,
                     question: structuredData.question,
@@ -895,9 +890,9 @@
                 renderHistoryPanelUI();
                 syncCardDisplaySurface();
 
-            } catch (networkError) {
-                console.error(networkError);
-                alert("Connection failed. Check your API key or internet connection.");
+            } catch (error) {
+                console.error("Simulation error:", error);
+                alert("Connection failed. Please ensure your Vercel API bridge is deployed correctly.");
             } finally {
                 screenOverlayLoader.style.display = 'none';
             }
