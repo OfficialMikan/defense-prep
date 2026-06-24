@@ -400,35 +400,41 @@
             color: white;
         }
 
-        .topic-selector {
+        .component-selector {
             display: flex;
             flex-wrap: wrap;
-            gap: 10px;
+            gap: 8px;
+            margin: 15px 0;
             justify-content: center;
-            margin: 20px 0;
         }
 
-        .btn-select {
-            background: var(--duo-blue);
-            color: white;
-            border: none;
-            border-bottom: 4px solid var(--duo-blue-shadow);
-            padding: 12px 20px;
+        .btn-component {
+            background: white;
+            color: var(--text-dark);
+            border: 2px solid var(--duo-gray);
+            border-bottom: 4px solid var(--duo-gray);
+            padding: 10px 12px;
             border-radius: 16px;
             cursor: pointer;
             font-family: var(--font);
-            font-weight: 800;
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            font-weight: 700;
+            font-size: 0.85rem;
             transition: all 0.1s ease;
             flex: 1;
-            min-width: 150px;
+            min-width: 80px;
+            max-width: 120px;
         }
 
-        .btn-select:active {
-            border-bottom-width: 0px;
-            transform: translateY(4px);
+        .btn-component.active {
+            background: var(--duo-purple);
+            color: white;
+            border-color: var(--duo-purple);
+            border-bottom-color: var(--duo-purple-shadow);
+        }
+
+        .btn-component:active {
+            border-bottom-width: 2px;
+            transform: translateY(2px);
         }
 
         .flashcard-section {
@@ -584,17 +590,17 @@
 
         .btn-photo {
             position: absolute;
-            top: 10px;
-            right: 20px;
+            top: 15px;
+            right: 25px;
             background: var(--duo-yellow);
             color: white;
             border: none;
             border-bottom: 4px solid var(--duo-yellow-shadow);
-            padding: 10px 15px;
-            border-radius: 16px;
+            padding: 8px 12px;
+            border-radius: 12px;
             cursor: pointer;
             font-family: var(--font);
-            font-size: 1.5rem;
+            font-size: 1.2rem;
             font-weight: 800;
             transition: all 0.1s ease;
             z-index: 5;
@@ -843,8 +849,10 @@
             }
 
             .btn-photo {
-                padding: 8px 12px;
-                font-size: 1.2rem;
+                padding: 6px 10px;
+                font-size: 1rem;
+                top: 12px;
+                right: 20px;
             }
 
             .modal-box {
@@ -902,13 +910,22 @@
                 margin-bottom: 10px;
             }
 
-            .topic-selector,
+            .component-selector {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .btn-component {
+                width: 100%;
+                max-width: none;
+                margin-bottom: 10px;
+            }
+
             .proposal-selector {
                 flex-direction: column;
                 align-items: center;
             }
 
-            .btn-select,
             .btn-proposal {
                 width: 100%;
                 max-width: none;
@@ -929,16 +946,6 @@
 
             .card-back .card-text {
                 font-size: 0.95rem;
-            }
-
-            .component-selector {
-                gap: 5px;
-            }
-
-            .btn-component {
-                font-size: 0.7rem;
-                padding: 6px 8px;
-                min-width: 60px;
             }
         }
     </style>
@@ -1014,17 +1021,21 @@
                     <button class="btn-difficulty btn-hard" onclick="setDifficulty('hard')">Hard</button>
                 </div>
 
-                <div class="selectors-title">Select Research Topic</div>
-                <div class="topic-selector">
-                    <button class="btn-select" onclick="triggerInterrogation(1)">Daily Jeepney Commuting</button>
-                    <button class="btn-select" onclick="triggerInterrogation(2)">AI-Assisted Learning Tools</button>
-                    <button class="btn-select" onclick="triggerInterrogation(3)">Synchronous vs Asynchronous
-                        Classes</button>
+                <div class="selectors-title">Select Research Component</div>
+                <div class="component-selector">
+                    <button class="btn-component active" data-component="all">ALL</button>
+                    <button class="btn-component" data-component="title">Title</button>
+                    <button class="btn-component" data-component="introduction">Introduction</button>
+                    <button class="btn-component" data-component="research_design">Research Design</button>
+                    <button class="btn-component" data-component="respondents">Respondents</button>
+                    <button class="btn-component" data-component="motivation">Motivation</button>
+                    <button class="btn-component" data-component="research_gap">Research Gap</button>
+                    <button class="btn-component" data-component="statement">Statement of Problem</button>
+                    <button class="btn-component" data-component="method">Research Method</button>
                 </div>
             </div>
 
             <div class="flashcard-section">
-                <button class="btn-photo" onclick="captureAndSavePhoto()">📷</button>
                 <div class="flashcard-wrapper">
                     <div class="flashcard" id="flashcard" onclick="performFlip()">
                         <div class="loader" id="loader">Generating Question...</div>
@@ -1034,18 +1045,20 @@
                             <div class="card-text" id="frontText">Choose a proposal above. The panel will ask you a
                                 question about your research.</div>
                             <div class="card-hint">Click to check</div>
+                            <button class="btn-photo" onclick="captureAndSavePhoto(event)">📷</button>
                         </div>
 
                         <div class="card-face card-back">
                             <div class="card-tag">Our Response</div>
                             <div class="card-text" id="backText">Your solid defense answer will appear here.</div>
                             <div class="card-hint">Click to flip</div>
+                            <button class="btn-photo" onclick="captureAndSavePhoto(event)">📷</button>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="selectors-title">Practice Another Proposal</div>
+            <div class="selectors-title">Select Research Proposal</div>
             <div class="proposal-selector">
                 <button class="btn-proposal" onclick="triggerInterrogation(1)">Daily Jeepney Commuting</button>
                 <button class="btn-proposal" onclick="triggerInterrogation(2)">AI-Assisted Learning Tools</button>
@@ -1133,6 +1146,18 @@
     Research Method: The researchers will use a structured questionnaire and academic performance records (with permission) to gather data from Grade 12 students who have experienced both synchronous and asynchronous learning classes. After collecting the data, the researchers will use frequency, percentage, and mean to describe student performance. The data that will be gathered will also be compared to determine whether a significant difference exists between students' academic performance in synchronous and asynchronous learning classes using a Paired-Samples t-test.`
             }
         };
+
+        // Research components in order
+        const researchComponents = [
+            { key: 'title', name: 'Title' },
+            { key: 'introduction', name: 'Introduction' },
+            { key: 'research_design', name: 'Research Design' },
+            { key: 'respondents', name: 'Respondents' },
+            { key: 'motivation', name: 'Motivation' },
+            { key: 'research_gap', name: 'Research Gap' },
+            { key: 'statement', name: 'Statement of Problem' },
+            { key: 'method', name: 'Research Method' }
+        ];
 
         let generatedCardsCollection = [];
         let executionPointerIndex = -1;
@@ -1229,33 +1254,18 @@
             }
 
             let componentPrompt = "";
-            switch (currentComponent) {
-                case 'title':
-                    componentPrompt = "Focus specifically on the research title and its formulation.";
-                    break;
-                case 'introduction':
-                    componentPrompt = "Focus specifically on the introduction and background of the study.";
-                    break;
-                case 'research_design':
-                    componentPrompt = "Focus specifically on the research design and methodology.";
-                    break;
-                case 'respondents':
-                    componentPrompt = "Focus specifically on the respondents and sampling method.";
-                    break;
-                case 'motivation':
-                    componentPrompt = "Focus specifically on the researcher's motivation.";
-                    break;
-                case 'research_gap':
-                    componentPrompt = "Focus specifically on the research gap identified.";
-                    break;
-                case 'statement':
-                    componentPrompt = "Focus specifically on the statement of the problem.";
-                    break;
-                case 'method':
-                    componentPrompt = "Focus specifically on the research method and data collection.";
-                    break;
-                default:
+            if (currentComponent === 'all') {
+                // Randomly select a component
+                const randomComponent = researchComponents[Math.floor(Math.random() * researchComponents.length)];
+                componentPrompt = `Focus specifically on the ${randomComponent.name} of the research proposal.`;
+            } else {
+                // Find the component name
+                const componentObj = researchComponents.find(c => c.key === currentComponent);
+                if (componentObj) {
+                    componentPrompt = `Focus specifically on the ${componentObj.name} of the research proposal.`;
+                } else {
                     componentPrompt = "Focus on any key aspect of the research proposal.";
+                }
             }
 
             const instructionPrompt = `You are a tough panel defense judge for high school research. The student researchers have proposed a study titled "${scopeMetadata.title}". ${difficultyPrompt} ${componentPrompt} As a panelist, ask a specific question about their research. The student researchers will respond in first-person plural ('We chose...'). Provide the question and answer in JSON format: {"question": "...", "answer": "..."}`;
@@ -1349,7 +1359,10 @@
             toggleSidebar(); // Close sidebar after reset
         }
 
-        async function captureAndSavePhoto() {
+        async function captureAndSavePhoto(event) {
+            // Prevent the flip when clicking the photo button
+            event.stopPropagation();
+
             if (executionPointerIndex === -1) {
                 alert("Please generate a question first before saving a photo!");
                 return;
