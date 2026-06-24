@@ -893,12 +893,13 @@
         } catch (e) { console.error("Local recovery error:", e); }
 
         window.addEventListener('DOMContentLoaded', () => {
-            // JUST render the history list, do not run syncCardDisplaySurface()
+            // Only load the history list, do not try to sync/show the card surface yet
             if (generatedCardsCollection.length > 0) {
                 renderHistoryPanelUI();
-                // REMOVED: syncCardDisplaySurface(); 
-                // This stops the card from auto-filling the last question on load
             }
+
+            // Explicitly hide the loader on page load to ensure it's not stuck
+            document.getElementById('loader').style.display = 'none';
         });
 
         function performFlip() {
@@ -915,15 +916,15 @@
             }
 
             const screenOverlayLoader = document.getElementById('loader');
+            // Ensure display is set correctly
             screenOverlayLoader.style.display = 'flex';
 
             // 2. Prepare the prompt
             const scopeMetadata = studyRepositoryContext[targetProposalNum];
-            const instructionPrompt = `You are a tough panel defense judge for high school research. Based on this paper context: "${scopeMetadata.dataDump}", generate ONE very specific, challenging question targeting their methodology, variables, or scope. Provide a flawless, direct answer written in the first-person plural ('We chose...') for the students to use to defend themselves. Output strictly as JSON: {"question": "...", "answer": "..."}`;
+            const instructionPrompt = `You are a tough panel defense judge for high school research. Based on this paper context: "${scopeMetadata.dataDump}", generate ONE very specific, challenging question targeting their methodology, variables, or scope. Provide a flawless, direct answer written in the first-person plural ('We chose...') for the students to use to defend themselves. Output ONLY raw JSON in this format: {"question": "...", "answer": "..."}`;
 
             try {
-                // 3. Send request to your own server-side bridge
-                // This is safe because your API Key is kept in Vercel's Environment Variables
+                // 3. Send request
                 const response = await fetch("/api/chat", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -934,11 +935,18 @@
 
                 const parsedPackage = await response.json();
 
-                // 4. Parse the AI response
-                // Note: Depending on how your API bridge returns data, you may need to adjust this
-                const structuredData = JSON.parse(parsedPackage.choices[0].message.content);
+                // 4. Robust Parsing: Clean the string to ensure it is valid JSON
+                let rawContent = parsedPackage.choices[0].message.content;
 
-                // 5. Update your app state
+                // Remove markdown formatting if the AI includes it (e.g., ```json ... ```)
+                const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    rawContent = jsonMatch[0];
+                }
+
+                const structuredData = JSON.parse(rawContent);
+
+                // 5. Update app state
                 generatedCardsCollection.push({
                     label: `Title ${targetProposalNum}`,
                     question: structuredData.question,
@@ -947,13 +955,15 @@
 
                 executionPointerIndex = generatedCardsCollection.length - 1;
                 localStorage.setItem('mcesi_sim_history', JSON.stringify(generatedCardsCollection));
+
                 renderHistoryPanelUI();
                 syncCardDisplaySurface();
 
             } catch (error) {
                 console.error("Simulation error:", error);
-                alert("Connection failed. Please ensure your Vercel API bridge is deployed correctly.");
+                alert("Generation failed. The AI returned an invalid format. Please try again.");
             } finally {
+                // Ensure the loader is ALWAYS hidden after attempt
                 screenOverlayLoader.style.display = 'none';
             }
         }
