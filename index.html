@@ -451,15 +451,20 @@
             text-align: left;
             font-weight: 600;
             color: #2b5900;
-            overflow-y: auto;
-            /* This allows the scrolling */
-            flex-grow: 1;
-            /* Fills the remaining space instead of a fixed height */
-            width: 100%;
-            /* Ensure it stays within bounds */
+
+            /* FIXES FOR SCROLLING */
+            overflow-y: auto !important;
+            flex: 1;
+            /* Allows it to take available space */
+            max-height: none !important;
+            /* Removes the 280px limit causing the clip */
+            height: 100%;
+            /* Ensures it fills the card */
+            min-height: 0;
+            /* Essential for flex child scrolling */
+
             padding-right: 15px;
-            height: auto;
-            /* Let the browser calculate the height */
+            padding-top: 10px;
         }
 
         .loader {
