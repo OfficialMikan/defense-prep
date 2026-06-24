@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Group 4 - Title Defense Training</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -40,7 +40,9 @@
             color: var(--text-dark);
             min-height: 100vh;
             display: flex;
-            overflow: hidden;
+            overflow-x: hidden;
+            /* Prevent horizontal scrolling */
+            width: 100%;
         }
 
         /* --- Custom Intro Loading Screen --- */
@@ -145,10 +147,11 @@
 
         .sidebar {
             position: fixed;
-            left: -350px;
+            left: -320px;
             top: 0;
             height: 100vh;
-            width: 320px;
+            width: 85%;
+            max-width: 320px;
             background: var(--sidebar-bg);
             border-right: 2px solid var(--duo-gray);
             display: flex;
@@ -262,10 +265,11 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 40px;
+            padding: 20px;
             position: relative;
             background: #f7f7f7;
             width: 100%;
+            min-height: 100vh;
         }
 
         .meta-header {
@@ -292,12 +296,13 @@
 
         .selectors {
             display: flex;
-            gap: 15px;
-            margin-top: 80px;
-            margin-bottom: 30px;
+            gap: 10px;
+            margin-top: 60px;
+            margin-bottom: 20px;
             z-index: 5;
             flex-wrap: wrap;
             justify-content: center;
+            width: 100%;
         }
 
         .btn-select {
@@ -305,12 +310,12 @@
             color: white;
             border: none;
             border-bottom: 4px solid var(--duo-blue-shadow);
-            padding: 14px 22px;
+            padding: 12px 16px;
             border-radius: 16px;
             cursor: pointer;
             font-family: var(--font);
             font-weight: 800;
-            font-size: 1rem;
+            font-size: 0.9rem;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             transition: all 0.1s ease;
@@ -323,9 +328,10 @@
 
         .flashcard-wrapper {
             width: 100%;
-            max-width: 685px;
-            height: 420px;
+            max-width: 600px;
+            height: 350px;
             perspective: 1200px;
+            padding: 0 10px;
         }
 
         .flashcard {
@@ -947,7 +953,7 @@
             executionPointerIndex = -1;
             document.getElementById('historyList').innerHTML = '';
             document.getElementById('frontTag').innerText = "Select Lesson";
-            document.getElementById('frontText').innerText = "Choose a proposal above. The Mikan AI will generate a tough panel question for you to practice.";
+            document.getElementById('frontText').innerText = "Choose a proposal above. The MIKAN AI will generate a tough panel question for you to practice.";
             document.getElementById('backText').innerText = "Your solid defense answer will appear here.";
             document.getElementById('flashcard').classList.remove('flipped');
             closeModal();
