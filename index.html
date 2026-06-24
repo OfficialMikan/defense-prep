@@ -368,14 +368,13 @@
             position: absolute;
             width: 100%;
             height: 100%;
-            box-sizing: border-box;
             backface-visibility: hidden;
-            -webkit-backface-visibility: hidden;
-            border-radius: 20px;
-            padding: 20px;
+            padding: 40px;
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            /* This is required for flex-grow to work */
+            justify-content: flex-start;
+            /* Aligns text to the top so you can scroll down */
         }
 
         .card-front {
@@ -449,12 +448,18 @@
 
         .card-back .card-text {
             font-size: 1.15rem;
-            text-align: justify;
+            text-align: left;
             font-weight: 600;
             color: #2b5900;
             overflow-y: auto;
-            max-height: 280px;
+            /* This allows the scrolling */
+            flex-grow: 1;
+            /* Fills the remaining space instead of a fixed height */
+            width: 100%;
+            /* Ensure it stays within bounds */
             padding-right: 15px;
+            height: auto;
+            /* Let the browser calculate the height */
         }
 
         .loader {
