@@ -761,7 +761,7 @@
         function getApiKey() {
             let key = localStorage.getItem('user_api_key');
             if (!key) {
-                key = prompt("Security Setup: Please enter your Groq API Key to initialize the simulator:");
+                key = prompt("Security Setup: Please enter your API Key to initialize the simulator:");
                 if (key) {
                     localStorage.setItem('user_api_key', key);
                 } else {
@@ -948,7 +948,7 @@
             executionPointerIndex = -1;
             document.getElementById('historyList').innerHTML = '';
             document.getElementById('frontTag').innerText = "Select Lesson";
-            document.getElementById('frontText').innerText = "Choose a proposal above. The AI will generate a tough panel question for you to practice.";
+            document.getElementById('frontText').innerText = "Choose a proposal above. The Mikan AI will generate a tough panel question for you to practice.";
             document.getElementById('backText').innerText = "Your solid defense answer will appear here.";
             document.getElementById('flashcard').classList.remove('flipped');
             closeModal();
