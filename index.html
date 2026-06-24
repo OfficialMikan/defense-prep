@@ -402,39 +402,36 @@
 
         .component-selector {
             display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin: 15px 0;
-            justify-content: center;
+            flex-direction: column;
+            gap: 15px;
+            margin: 20px 0;
+            align-items: center;
         }
 
-        .btn-component {
-            background: white;
-            color: var(--text-dark);
+        .component-dropdown {
+            width: 100%;
+            max-width: 400px;
+            padding: 12px 15px;
             border: 2px solid var(--duo-gray);
             border-bottom: 4px solid var(--duo-gray);
-            padding: 10px 12px;
             border-radius: 16px;
-            cursor: pointer;
             font-family: var(--font);
             font-weight: 700;
-            font-size: 0.85rem;
-            transition: all 0.1s ease;
-            flex: 1;
-            min-width: 80px;
-            max-width: 120px;
+            font-size: 1rem;
+            background: white;
+            color: var(--text-dark);
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234b4b4b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 15px center;
+            background-size: 15px;
+            padding-right: 40px;
         }
 
-        .btn-component.active {
-            background: var(--duo-purple);
-            color: white;
-            border-color: var(--duo-purple);
-            border-bottom-color: var(--duo-purple-shadow);
-        }
-
-        .btn-component:active {
-            border-bottom-width: 2px;
-            transform: translateY(2px);
+        .component-dropdown:focus {
+            outline: none;
+            border-color: var(--duo-blue);
         }
 
         .flashcard-section {
@@ -478,7 +475,10 @@
             justify-content: flex-start;
             border-radius: 20px;
             overflow: hidden;
+            /* Add this line */
+            transform-style: preserve-3d;
         }
+
 
         .card-front {
             background-color: #ffffff;
@@ -604,7 +604,10 @@
             font-weight: 800;
             transition: all 0.1s ease;
             z-index: 5;
+            /* Add this to keep it fixed during flip */
+            transform: translateZ(1px);
         }
+
 
         .btn-photo:hover {
             background: #ffce1a;
@@ -868,10 +871,9 @@
                 font-size: 1rem;
             }
 
-            .btn-component {
-                font-size: 0.75rem;
-                padding: 8px 10px;
-                min-width: 70px;
+            .component-dropdown {
+                font-size: 0.9rem;
+                padding: 10px 12px;
             }
 
             .difficulty-selector {
@@ -911,14 +913,12 @@
             }
 
             .component-selector {
-                flex-direction: column;
-                align-items: center;
+                width: 100%;
             }
 
-            .btn-component {
+            .component-dropdown {
                 width: 100%;
                 max-width: none;
-                margin-bottom: 10px;
             }
 
             .proposal-selector {
@@ -1023,15 +1023,17 @@
 
                 <div class="selectors-title">Select Research Component</div>
                 <div class="component-selector">
-                    <button class="btn-component active" data-component="all">ALL</button>
-                    <button class="btn-component" data-component="title">Title</button>
-                    <button class="btn-component" data-component="introduction">Introduction</button>
-                    <button class="btn-component" data-component="research_design">Research Design</button>
-                    <button class="btn-component" data-component="respondents">Respondents</button>
-                    <button class="btn-component" data-component="motivation">Motivation</button>
-                    <button class="btn-component" data-component="research_gap">Research Gap</button>
-                    <button class="btn-component" data-component="statement">Statement of Problem</button>
-                    <button class="btn-component" data-component="method">Research Method</button>
+                    <select class="component-dropdown" id="componentDropdown" onchange="setComponentFromDropdown()">
+                        <option value="all">All Components (Random)</option>
+                        <option value="title">Title</option>
+                        <option value="introduction">Introduction</option>
+                        <option value="research_design">Research Design</option>
+                        <option value="respondents">Respondents</option>
+                        <option value="motivation">Motivation</option>
+                        <option value="research_gap">Research Gap</option>
+                        <option value="statement">Statement of Problem</option>
+                        <option value="method">Research Method</option>
+                    </select>
                 </div>
             </div>
 
@@ -1052,7 +1054,6 @@
                             <div class="card-tag">Our Response</div>
                             <div class="card-text" id="backText">Your solid defense answer will appear here.</div>
                             <div class="card-hint">Click to flip</div>
-                            <button class="btn-photo" onclick="captureAndSavePhoto(event)">📷</button>
                         </div>
                     </div>
                 </div>
@@ -1182,9 +1183,6 @@
 
             // Explicitly hide the loader on page load to ensure it's not stuck
             document.getElementById('loader').style.display = 'none';
-
-            // Set initial active component
-            setActiveComponentButton('all');
         });
 
         function performFlip() {
@@ -1209,22 +1207,9 @@
             selectedBtn.style.borderBottomWidth = '2px';
         }
 
-        function setComponent(component) {
-            currentComponent = component;
-            setActiveComponentButton(component);
-        }
-
-        function setActiveComponentButton(component) {
-            // Update UI to show selected component
-            document.querySelectorAll('.btn-component').forEach(btn => {
-                btn.classList.remove('active');
-            });
-
-            const selectedBtn = [...document.querySelectorAll('.btn-component')].find(btn =>
-                btn.dataset.component === component);
-            if (selectedBtn) {
-                selectedBtn.classList.add('active');
-            }
+        function setComponentFromDropdown() {
+            const dropdown = document.getElementById('componentDropdown');
+            currentComponent = dropdown.value;
         }
 
         async function triggerInterrogation(targetProposalNum) {
@@ -1393,14 +1378,6 @@
                 photoBtn.innerText = originalText;
             }
         }
-
-        // Add event listeners to component buttons
-        document.querySelectorAll('.btn-component').forEach(button => {
-            button.addEventListener('click', function () {
-                const component = this.dataset.component;
-                setComponent(component);
-            });
-        });
     </script>
 </body>
 
