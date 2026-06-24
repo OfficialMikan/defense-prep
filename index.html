@@ -855,7 +855,11 @@
             if (generatedCardsCollection.length >= 25) {
                 alert("Your lesson history is getting very full! You may want to review and Save your best photos, then Reset Levels to keep performance fast.");
             }
-
+            const response = await fetch("/api", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ prompt: instructionPrompt })
+            });
             const screenOverlayLoader = document.getElementById('loader');
             screenOverlayLoader.style.display = 'flex';
 
