@@ -475,7 +475,7 @@
             justify-content: flex-start;
             border-radius: 20px;
             overflow: hidden;
-            /* Add this line */
+            /* This is crucial for 3D positioning */
             transform-style: preserve-3d;
         }
 
@@ -604,7 +604,7 @@
             font-weight: 800;
             transition: all 0.1s ease;
             z-index: 5;
-            /* Add this to keep it fixed during flip */
+            /* This ensures it stays in place during 3D transforms */
             transform: translateZ(1px);
         }
 
@@ -1054,6 +1054,7 @@
                             <div class="card-tag">Our Response</div>
                             <div class="card-text" id="backText">Your solid defense answer will appear here.</div>
                             <div class="card-hint">Click to flip</div>
+                            <button class="btn-photo" onclick="captureAndSavePhoto(event)">📷</button>
                         </div>
                     </div>
                 </div>
