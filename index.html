@@ -41,7 +41,6 @@
             min-height: 100vh;
             display: flex;
             overflow-x: hidden;
-            /* Prevent horizontal scrolling */
             width: 100%;
         }
 
@@ -60,7 +59,6 @@
             justify-content: center;
             transition: opacity 0.5s ease, visibility 0.5s ease;
             padding: 20px;
-            /* Prevents text from touching edges */
             text-align: center;
         }
 
@@ -269,26 +267,21 @@
             align-items: center;
             justify-content: center;
             padding: 60px 20px 20px 20px;
-            /* Added top padding to prevent button overlap */
             position: relative;
             background: #f7f7f7;
             width: 100%;
             min-height: 100vh;
         }
 
-        /* Update your header container */
         .meta-header {
             text-align: center;
             position: relative;
-            /* Changed from absolute to relative */
             width: 100%;
             margin-top: 60px;
             margin-bottom: 20px;
             display: flex;
             flex-direction: column;
-            /* Stacks items vertically */
             align-items: center;
-            /* Centers items horizontally */
             justify-content: center;
         }
 
@@ -336,6 +329,9 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
             transition: all 0.1s ease;
+            flex: 1;
+            min-width: 120px;
+            max-width: 200px;
         }
 
         .btn-select:active {
@@ -349,6 +345,7 @@
             height: 350px;
             perspective: 1200px;
             padding: 0 10px;
+            margin: 20px 0;
         }
 
         .flashcard {
@@ -372,9 +369,7 @@
             padding: 40px;
             display: flex;
             flex-direction: column;
-            /* This is required for flex-grow to work */
             justify-content: flex-start;
-            /* Aligns text to the top so you can scroll down */
         }
 
         .card-front {
@@ -430,7 +425,6 @@
             font-size: 1.1rem;
             line-height: 1.6;
             word-wrap: break-word;
-            /* Forces long words to wrap */
             overflow-wrap: break-word;
             padding: 10px;
             width: 100%;
@@ -451,18 +445,11 @@
             text-align: left;
             font-weight: 600;
             color: #2b5900;
-
-            /* FIXES FOR SCROLLING */
             overflow-y: auto !important;
             flex: 1;
-            /* Allows it to take available space */
             max-height: none !important;
-            /* Removes the 280px limit causing the clip */
             height: 100%;
-            /* Ensures it fills the card */
             min-height: 0;
-            /* Essential for flex child scrolling */
-
             padding-right: 15px;
             padding-top: 10px;
         }
@@ -489,7 +476,6 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
             transform: rotateY(0deg) !important;
-            /* Force loader to stay upright */
         }
 
         .controls {
@@ -499,6 +485,8 @@
             align-items: center;
             flex-wrap: wrap;
             justify-content: center;
+            width: 100%;
+            max-width: 600px;
         }
 
         .btn-nav {
@@ -514,6 +502,8 @@
             font-weight: 800;
             text-transform: uppercase;
             transition: all 0.1s ease;
+            flex: 1;
+            min-width: 100px;
         }
 
         .btn-nav:hover {
@@ -556,6 +546,8 @@
             font-weight: 800;
             text-transform: uppercase;
             transition: all 0.1s ease;
+            flex: 1;
+            min-width: 100px;
         }
 
         .btn-photo:hover {
@@ -713,6 +705,127 @@
 
         ::-webkit-scrollbar-thumb:hover {
             background: var(--duo-gray-shadow);
+        }
+
+        /* Mobile Improvements */
+        @media (max-width: 768px) {
+            .meta-header h1 {
+                font-size: 2rem;
+            }
+
+            .meta-header p {
+                font-size: 1rem;
+            }
+
+            .selectors {
+                margin-top: 30px;
+            }
+
+            .btn-select {
+                padding: 10px 12px;
+                font-size: 0.85rem;
+                min-width: 100px;
+            }
+
+            .flashcard-wrapper {
+                height: 300px;
+                padding: 0 5px;
+            }
+
+            .card-face {
+                padding: 25px;
+            }
+
+            .card-tag {
+                top: 15px;
+                left: 20px;
+                font-size: 0.8rem;
+            }
+
+            .card-hint {
+                bottom: 15px;
+                right: 20px;
+                font-size: 0.8rem;
+            }
+
+            .card-text {
+                font-size: 1rem;
+                padding: 5px;
+            }
+
+            .card-back .card-text {
+                font-size: 1rem;
+                padding: 5px;
+            }
+
+            .controls {
+                gap: 10px;
+                margin-top: 20px;
+            }
+
+            .btn-nav,
+            .btn-photo {
+                padding: 10px 15px;
+                font-size: 0.9rem;
+                min-width: 80px;
+            }
+
+            .modal-box {
+                padding: 25px;
+                margin: 0 20px;
+            }
+
+            .modal-box h3 {
+                font-size: 1.5rem;
+            }
+
+            .modal-box p {
+                font-size: 1rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .meta-header h1 {
+                font-size: 1.7rem;
+            }
+
+            .selectors {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .btn-select {
+                width: 100%;
+                max-width: none;
+                margin-bottom: 10px;
+            }
+
+            .flashcard-wrapper {
+                height: 280px;
+            }
+
+            .card-face {
+                padding: 20px;
+            }
+
+            .card-text {
+                font-size: 0.95rem;
+            }
+
+            .card-back .card-text {
+                font-size: 0.95rem;
+            }
+
+            .controls {
+                flex-direction: column;
+                width: 100%;
+            }
+
+            .btn-nav,
+            .btn-photo {
+                width: 100%;
+                margin-bottom: 10px;
+            }
         }
     </style>
 </head>
@@ -909,6 +1022,7 @@
         }
 
         async function triggerInterrogation(targetProposalNum) {
+
             // 1. Check if history limit reached
             if (generatedCardsCollection.length >= 25) {
                 alert("Your lesson history is getting very full! Please Reset Levels to keep performance fast.");
@@ -916,15 +1030,15 @@
             }
 
             const screenOverlayLoader = document.getElementById('loader');
-            // Ensure display is set correctly
             screenOverlayLoader.style.display = 'flex';
 
             // 2. Prepare the prompt
             const scopeMetadata = studyRepositoryContext[targetProposalNum];
-            const instructionPrompt = `You are a tough panel defense judge for high school research. Based on this paper context: "${scopeMetadata.dataDump}", generate ONE very specific, challenging question targeting their methodology, variables, or scope. Provide a flawless, direct answer written in the first-person plural ('We chose...') for the students to use to defend themselves. Output ONLY raw JSON in this format: {"question": "...", "answer": "..."}`;
+            const instructionPrompt = `You are a tough panel defense judge for high school research. Based on this paper context: "${scopeMetadata.dataDump}", generate ONE very specific, challenging question targeting their methodology, variables, or scope. Provide a flawless, direct answer written in the first-person plural ('We chose...') for the students to use to defend themselves. Output strictly as JSON: {"question": "...", "answer": "..."}`;
 
             try {
-                // 3. Send request
+                // 3. Send request to your own server-side bridge
+                // This is safe because your API Key is kept in Vercel's Environment Variables
                 const response = await fetch("/api/chat", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -935,18 +1049,11 @@
 
                 const parsedPackage = await response.json();
 
-                // 4. Robust Parsing: Clean the string to ensure it is valid JSON
-                let rawContent = parsedPackage.choices[0].message.content;
+                // 4. Parse the AI response
+                // Note: Depending on how your API bridge returns data, you may need to adjust this
+                const structuredData = JSON.parse(parsedPackage.choices[0].message.content);
 
-                // Remove markdown formatting if the AI includes it (e.g., ```json ... ```)
-                const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
-                if (jsonMatch) {
-                    rawContent = jsonMatch[0];
-                }
-
-                const structuredData = JSON.parse(rawContent);
-
-                // 5. Update app state
+                // 5. Update your app state
                 generatedCardsCollection.push({
                     label: `Title ${targetProposalNum}`,
                     question: structuredData.question,
@@ -955,15 +1062,13 @@
 
                 executionPointerIndex = generatedCardsCollection.length - 1;
                 localStorage.setItem('mcesi_sim_history', JSON.stringify(generatedCardsCollection));
-
                 renderHistoryPanelUI();
                 syncCardDisplaySurface();
 
             } catch (error) {
                 console.error("Simulation error:", error);
-                alert("Generation failed. The AI returned an invalid format. Please try again.");
+                alert("Connection failed. Please ensure your Vercel API bridge is deployed correctly.");
             } finally {
-                // Ensure the loader is ALWAYS hidden after attempt
                 screenOverlayLoader.style.display = 'none';
             }
         }
@@ -974,9 +1079,10 @@
             document.getElementById('flashcard').classList.remove('flipped');
             setTimeout(() => {
                 document.getElementById('frontTag').innerText = cardContext.label;
-                document.getElementById('frontText').innerText = "Choose a proposal above. The AI will generate a tough panel question for you to practice.";
-                document.getElementById('backText').innerText = "Your solid defense answer will appear here.";
-                return;
+                document.getElementById('frontText').innerText = cardContext.question;
+                document.getElementById('backText').innerText = cardContext.answer;
+
+                // Update history item active state
                 document.querySelectorAll('.history-item').forEach((element, DOMIdx) => {
                     element.classList.toggle('active', DOMIdx === executionPointerIndex);
                 });
