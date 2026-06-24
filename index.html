@@ -758,7 +758,7 @@
             document.getElementById('sidebar-overlay').classList.toggle('active');
         }
 
-        function getApiKey() {
+        function getKey() {
             let key = localStorage.getItem('user_api_key');
             if (!key) {
                 key = prompt("Security Setup: Please enter your Groq API Key to initialize the simulator:");
