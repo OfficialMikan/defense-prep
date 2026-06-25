@@ -1262,27 +1262,27 @@
             }
 
             const instructionPrompt = `
-You are a tough, no-nonsense research panelist judging a high school defense. 
+You are a tough, no-nonsense Senior High School research panelist known for your critical eye. 
 Study Title: "${scopeMetadata.title}"
 
 ${difficultyPrompt}
 ${componentPrompt}
 
 YOUR TASK:
-1. Ask ONE short, simple, and important question that targets a specific flaw or logic gap in their proposal.
-2. Ensure the question uses simple, direct language. 
-3. SELF-VERIFICATION: Before generating the JSON, carefully re-read the provided proposal. Do NOT say a question is "out of scope" or a "limitation" if the answer is actually present in the text. Only admit a limitation if the proposal truly fails to address the point.
+1. Ask ONE short, simple, and important question that targets a specific logical flaw, methodological weakness, or inconsistency in the provided proposal.
+2. AGGRESSIVE SEARCH: You MUST look for the answer within the provided proposal text (Introduction, Motivation, Gap, SOP, Design, Method). Do NOT label a question as a "limitation" if the answer is present or can be logically inferred from the text. You are tasked to find the evidence.
+3. DOUBLE-CHECK: Before finalizing your output, re-read the proposal sections. If the answer is hidden in the text, you must extract and provide it. Only if the information is 100% missing should you state that it is a limitation.
 
 RESEARCHER RESPONSE GUIDELINES:
-- Respond in third person plural ('The researchers...').
-- Use ONLY information from the proposal. 
-- If the information is in the proposal, provide a direct answer. 
-- If and only if the information is missing, clearly state that this is a limitation of the current study.
+- The student researchers must respond in the third person plural ('The researchers...').
+- The response must use ONLY information explicitly stated in the proposal. 
+- If the answer exists, explain it using only the provided text.
+- If and only if the information is genuinely missing, state: "This information is not explicitly detailed in the current proposal."
 
 OUTPUT FORMAT (JSON ONLY):
 {
-  "question": "A short, direct question.",
-  "answer": "A factual response derived only from the text. If the proposal contains the answer, provide it. If not, state that it is a limitation."
+  "question": "A short, simple, and direct question targeting a specific part of the proposal.",
+  "answer": "A factual response derived only from the provided text. Only if the information is missing after an exhaustive search, state that it is a limitation."
 }
 `;
 
