@@ -3,7 +3,8 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Group 4 - Title Defense Training</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -458,6 +459,8 @@
             transform-style: preserve-3d;
             transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
             cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            /* Prevents flash on tap */
         }
 
         .flashcard.flipped {
@@ -476,6 +479,8 @@
             border-radius: 20px;
             overflow: hidden;
             transform-style: preserve-3d;
+            -webkit-overflow-scrolling: touch;
+            /* Add this */
         }
 
 
@@ -539,26 +544,30 @@
             text-align: justify;
             font-weight: 700;
             color: var(--text-dark);
-            /* Fix the scrolling issue */
             display: block;
             height: calc(100% - 80px);
-            overflow-y: auto;
+            overflow-y: scroll;
+            /* Changed from auto to scroll */
             margin-top: 40px;
             padding-right: 10px;
+            -webkit-overflow-scrolling: touch;
+            /* Add this for iOS momentum scrolling */
         }
-
 
         .card-back .card-text {
             font-size: 1.15rem;
             text-align: left;
             font-weight: 600;
             color: #2b5900;
-            /* Ensure proper scrolling */
-            overflow-y: auto !important;
+            overflow-y: scroll;
+            /* Changed from auto to scroll */
             height: calc(100% - 80px);
             padding-right: 15px;
             padding-top: 10px;
+            -webkit-overflow-scrolling: touch;
+            /* Add this for iOS momentum scrolling */
         }
+
 
         .loader {
             display: none;
