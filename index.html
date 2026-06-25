@@ -1438,31 +1438,42 @@ Research Method: The researchers will use academic performance records to gather
             }
         }
 
-        function copyText(event, side) {
-            event.stopPropagation();
-            let textToCopy = "";
-
-            if (side === 'front') {
-                textToCopy = document.getElementById('frontText').innerText;
-            } else {
-                textToCopy = document.getElementById('backText').innerText;
-            }
-
-            navigator.clipboard.writeText(textToCopy).then(() => {
-                // Show feedback on the copy button
-                const buttons = document.querySelectorAll('.btn-copy-action');
-                buttons.forEach(btn => {
-                    const originalText = btn.innerText;
-                    btn.innerText = "✓";
-                    setTimeout(() => {
-                        btn.innerText = originalText;
-                    }, 1000);
-                });
-            }).catch(err => {
-                console.error('Failed to copy text: ', err);
-                alert("Failed to copy text to clipboard.");
-            });
+function copyText(event, side) {
+    event.stopPropagation();
+    let textToCopy = "";
+    
+    if (side === 'front') {
+        const currentCard = generatedCardsCollection[executionPointerIndex];
+        if (currentCard) {
+            textToCopy = `Topic: ${currentCard.label}\nQ: ${currentCard.question}\nA: ${currentCard.answer}`;
+        } else {
+            textToCopy = document.getElementById('frontText').innerText;
         }
+    } else {
+        const currentCard = generatedCardsCollection[executionPointerIndex];
+        if (currentCard) {
+            textToCopy = `Topic: ${currentCard.label}\nQ: ${currentCard.question}\nA: ${currentCard.answer}`;
+        } else {
+            textToCopy = document.getElementById('backText').innerText;
+        }
+    }
+    
+    navigator.clipboard.writeText(textToCopy).then(() => {
+        // Show feedback on the copy button
+        const buttons = document.querySelectorAll('.btn-copy-action');
+        buttons.forEach(btn => {
+            const originalText = btn.innerText;
+            btn.innerText = "✓";
+            setTimeout(() => {
+                btn.innerText = originalText;
+            }, 1000);
+        });
+    }).catch(err => {
+        console.error('Failed to copy text: ', err);
+        alert("Failed to copy text to clipboard.");
+    });
+}
+
     </script>
 </body>
 
