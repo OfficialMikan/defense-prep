@@ -1261,8 +1261,7 @@
                 }
             }
 
-            const instructionPrompt = `You are a tough panel defense judge for high school research titled "${scopeMetadata.title}". ${difficultyPrompt} ${componentPrompt} Ask one direct, probing question about a technical or methodological detail found ONLY in the provided proposal. The student researchers must respond in the third person plural ('The researchers...') using ONLY information from their proposal; if the information is present, synthesize it to justify their choices. Output ONLY JSON: {"question": "...", "answer": "..."}`;
-
+            const instructionPrompt = `You are a tough panel defense judge for high school research. The student researchers have proposed a study titled "${scopeMetadata.title}". ${difficultyPrompt} ${componentPrompt} As a panelist, ask a short, direct, and a specific question about their research based ONLY on the provided information. The student researchers will respond in third person plural ('The researchers...') using ONLY information from their proposal. Provide the question and answer in JSON format: {"question": "...", "answer": "..."}`;
             try {
                 // 3. Send request to your own server-side bridge
                 // This is safe because your API Key is kept in Vercel's Environment Variables
