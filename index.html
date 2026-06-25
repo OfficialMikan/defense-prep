@@ -443,7 +443,6 @@
             justify-content: center;
             position: relative;
             flex-shrink: 0;
-            /* Prevent shrinking */
         }
 
         .flashcard-wrapper {
@@ -453,16 +452,13 @@
             perspective: 1200px;
             padding: 0 10px;
             position: relative;
-            /* Changed from flex to relative */
             margin: 0 auto;
-            /* Center it */
         }
 
         .flashcard {
             width: 100%;
             min-height: 350px;
             position: relative;
-            /* Keep relative instead of absolute */
             transform-style: preserve-3d;
             transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
             cursor: pointer;
@@ -473,36 +469,23 @@
             transform: rotateY(180deg);
         }
 
-        .flashcard.flipped .card-front {
-            display: none;
-            /* Hide front when flipped */
-        }
-
-        .flashcard.flipped .card-back {
-            display: block;
-            /* Show back when flipped */
-        }
-
         .card-face {
-            position: relative;
-            /* Changed from absolute to relative */
+            position: absolute;
             width: 100%;
             min-height: 350px;
+            backface-visibility: hidden;
             padding: 30px;
             display: flex;
             flex-direction: column;
-            justify-content: flex-start;
             border-radius: 20px;
             overflow: hidden;
             transform-style: preserve-3d;
-            border: 2px solid var(--duo-gray);
-            border-bottom: 6px solid var(--duo-gray);
-            box-sizing: border-box;
         }
-
 
         .card-front {
             background-color: #ffffff;
+            border: 2px solid var(--duo-gray);
+            border-bottom: 6px solid var(--duo-gray);
         }
 
         .card-front .card-text {
@@ -514,10 +497,9 @@
 
         .card-back {
             background-color: #d7ffb8;
-            border-color: var(--duo-green);
-            border-bottom-color: var(--duo-green-shadow);
-            display: none;
-            /* Hide by default */
+            border: 2px solid var(--duo-green);
+            border-bottom: 6px solid var(--duo-green-shadow);
+            transform: rotateY(180deg);
         }
 
         .card-tag {
@@ -582,14 +564,12 @@
             max-height: none;
         }
 
-
         .loader {
             display: none;
             position: absolute;
             background: rgba(255, 255, 255, 0.95);
             width: 100%;
             min-height: 100%;
-            /* Changed to min-height */
             top: 0;
             left: 0;
             display: flex;
@@ -624,10 +604,8 @@
             font-weight: 800;
             transition: all 0.1s ease;
             z-index: 5;
-            /* This ensures it stays in place during 3D transforms */
             transform: translateZ(1px);
         }
-
 
         .btn-photo:hover {
             background: #ffce1a;
@@ -646,10 +624,6 @@
             justify-content: center;
             width: 100%;
             max-width: 800px;
-            position: relative;
-            /* Ensure it stays in normal flow */
-            z-index: 1;
-            /* Keep above other elements */
         }
 
         .btn-proposal {
@@ -845,12 +819,13 @@
             }
 
             .flashcard-wrapper {
-                height: 300px;
+                min-height: 300px;
                 padding: 0 5px;
             }
 
             .card-face {
                 padding: 25px;
+                min-height: 300px;
             }
 
             .card-tag {
@@ -957,11 +932,12 @@
             }
 
             .flashcard-wrapper {
-                height: 280px;
+                min-height: 280px;
             }
 
             .card-face {
                 padding: 20px;
+                min-height: 280px;
             }
 
             .card-text {
@@ -1063,7 +1039,7 @@
 
             <div class="flashcard-section">
                 <div class="flashcard-wrapper">
-                    <div class="flashcard" id="flashcard">
+                    <div class="flashcard" id="flashcard" onclick="performFlip()">
                         <div class="loader" id="loader">Generating Question...</div>
 
                         <div class="card-face card-front">
@@ -1083,17 +1059,6 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Proposal selector stays outside the flashcard section -->
-            <div class="selectors-title">Select Research Proposal</div>
-            <div class="proposal-selector">
-                <button class="btn-proposal" onclick="triggerInterrogation(1)">Daily Jeepney Commuting</button>
-                <button class="btn-proposal" onclick="triggerInterrogation(2)">AI-Assisted Learning Tools</button>
-                <button class="btn-proposal" onclick="triggerInterrogation(3)">Synchronous vs Asynchronous
-                    Classes</button>
-            </div>
-
-
 
             <div class="selectors-title">Select Research Proposal</div>
             <div class="proposal-selector">
@@ -1223,21 +1188,7 @@
 
         function performFlip() {
             if (executionPointerIndex !== -1) {
-                const flashcard = document.getElementById('flashcard');
-                const frontCard = flashcard.querySelector('.card-front');
-                const backCard = flashcard.querySelector('.card-back');
-
-                if (flashcard.classList.contains('flipped')) {
-                    // Flip back to front
-                    flashcard.classList.remove('flipped');
-                    frontCard.style.display = 'block';
-                    backCard.style.display = 'none';
-                } else {
-                    // Flip to back
-                    flashcard.classList.add('flipped');
-                    frontCard.style.display = 'none';
-                    backCard.style.display = 'block';
-                }
+                document.getElementById('flashcard').classList.toggle('flipped');
             }
         }
 
