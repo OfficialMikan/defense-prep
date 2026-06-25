@@ -1394,48 +1394,57 @@
             currentComponent = dropdown.value;
         }
 
-        // Enhanced AI model selection with fallbacks
-        async function callAIModel(prompt, modelType = 'primary') {
-            const models = {
-                primary: "llama-3.3-70b-versatile",
-                secondary: "llama-3.1-70b-versatile",
-                fallback: "llama3-70b-8192"
+        // Enhanced AI model selection with multiple providers
+        async function callAIModel(prompt, providerType = 'primary') {
+            const providers = {
+                primary: 'groq',
+                secondary: 'openai',
+                fallback: 'gemini'
             };
 
-            const selectedModel = models[modelType] || models.primary;
+            const selectedProvider = providers[providerType] || providers.primary;
 
             try {
+                console.log(`Calling ${selectedProvider} API...`);
+
                 const response = await fetch("/api/chat", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         prompt: prompt,
-                        model: selectedModel
+                        provider: selectedProvider
                     })
                 });
 
                 if (!response.ok) {
-                    if (modelType === 'primary') {
+                    const errorData = await response.json();
+                    console.error(`${selectedProvider} API Error:`, errorData);
+
+                    if (providerType === 'primary') {
                         return await callAIModel(prompt, 'secondary');
-                    } else if (modelType === 'secondary') {
+                    } else if (providerType === 'secondary') {
                         return await callAIModel(prompt, 'fallback');
                     } else {
-                        throw new Error("All AI models failed");
+                        throw new Error(`All AI providers failed: ${errorData.details || 'Unknown error'}`);
                     }
                 }
 
                 const parsedPackage = await response.json();
+                console.log(`${selectedProvider} API success`);
                 return parsedPackage;
             } catch (error) {
-                if (modelType === 'primary') {
+                console.error(`${selectedProvider} Network Error:`, error);
+
+                if (providerType === 'primary') {
                     return await callAIModel(prompt, 'secondary');
-                } else if (modelType === 'secondary') {
+                } else if (providerType === 'secondary') {
                     return await callAIModel(prompt, 'fallback');
                 } else {
-                    throw new Error("All AI models failed");
+                    throw new Error("All AI providers failed: " + error.message);
                 }
             }
         }
+
 
         async function triggerInterrogation(targetProposalNum) {
             // 1. Check if history limit reached
