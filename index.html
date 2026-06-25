@@ -1394,120 +1394,102 @@
             currentComponent = dropdown.value;
         }
 
-        // Enhanced AI model selection with multiple providers
-        async function callAIModel(prompt, providerType = 'primary') {
-            const providers = {
-                primary: 'groq',
-                secondary: 'openai',
-                fallback: 'gemini'
-            };
-
-            const selectedProvider = providers[providerType] || providers.primary;
-
+        // Simplified AI call function - replace the old one
+        async function callAIModel(prompt, type = 'flashcard') {
             try {
-                console.log(`Calling ${selectedProvider} API...`);
-
                 const response = await fetch("/api/chat", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         prompt: prompt,
-                        provider: selectedProvider
+                        type: type  // 'flashcard' or 'chat'
                     })
                 });
 
                 if (!response.ok) {
                     const errorData = await response.json();
-                    console.error(`${selectedProvider} API Error:`, errorData);
-
-                    if (providerType === 'primary') {
-                        return await callAIModel(prompt, 'secondary');
-                    } else if (providerType === 'secondary') {
-                        return await callAIModel(prompt, 'fallback');
-                    } else {
-                        throw new Error(`All AI providers failed: ${errorData.details || 'Unknown error'}`);
-                    }
+                    throw new Error(`API Error: ${errorData.details || 'Unknown error'}`);
                 }
 
-                const parsedPackage = await response.json();
-                console.log(`${selectedProvider} API success`);
-                return parsedPackage;
+                const data = await response.json();
+                return data;
+
             } catch (error) {
-                console.error(`${selectedProvider} Network Error:`, error);
+                console.error("AI Service Error:", error);
+                throw new Error("Sorry, I'm having trouble connecting to the AI service. Please try again.");
+            }
 
-                if (providerType === 'primary') {
-                    return await callAIModel(prompt, 'secondary');
-                } else if (providerType === 'secondary') {
-                    return await callAIModel(prompt, 'fallback');
-                } else {
-                    throw new Error("All AI providers failed: " + error.message);
+            // Simplified AI call function - replace the old one
+            async function callAIModel(prompt, type = 'flashcard') {
+                try {
+                    const response = await fetch("/api/chat", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            prompt: prompt,
+                            type: type  // 'flashcard' or 'chat'
+                        })
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(`API Error: ${errorData.details || 'Unknown error'}`);
+                    }
+
+                    const data = await response.json();
+                    return data;
+
+                } catch (error) {
+                    console.error("AI Service Error:", error);
+                    throw new Error("Sorry, I'm having trouble connecting to the AI service. Please try again.");
                 }
             }
-        }
+            // Simplified AI call function - replace the old one
+            async function callAIModel(prompt, type = 'flashcard') {
+                try {
+                    const response = await fetch("/api/chat", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            prompt: prompt,
+                            type: type  // 'flashcard' or 'chat'
+                        })
+                    });
 
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(`API Error: ${errorData.details || 'Unknown error'}`);
+                    }
 
-        async function triggerInterrogation(targetProposalNum) {
-            // 1. Check if history limit reached
-            if (generatedCardsCollection.length >= MAX_HISTORY_SIZE) {
-                alert(`Your lesson history is getting very full! Please Reset Levels to keep performance fast. Maximum ${MAX_HISTORY_SIZE} items allowed.`);
-                return;
-            }
+                    const data = await response.json();
+                    return data;
 
-            const screenOverlayLoader = document.getElementById('loader');
-            screenOverlayLoader.style.display = 'flex';
-
-            // 2. Prepare the prompt with difficulty and component
-            const scopeMetadata = studyRepositoryContext[targetProposalNum];
-
-            let difficultyPrompt = "";
-            switch (currentDifficulty) {
-                case 'easy':
-                    difficultyPrompt = "Create a basic question focusing on fundamental concepts and data.";
-                    break;
-                case 'medium':
-                    difficultyPrompt = "Create a moderate question that tests understanding of methodology and application of research data.";
-                    break;
-                case 'hard':
-                    difficultyPrompt = "Create a challenging question that requires critical analysis of research findings and data interpretation.";
-                    break;
-            }
-
-            let componentPrompt = "";
-            if (currentComponent === 'all') {
-                // Randomly select a component
-                const randomComponent = researchComponents[Math.floor(Math.random() * researchComponents.length)];
-                componentPrompt = `Focus specifically on the ${randomComponent.name} of the research proposal.`;
-            } else {
-                // Find the component name
-                const componentObj = researchComponents.find(c => c.key === currentComponent);
-                if (componentObj) {
-                    componentPrompt = `Focus specifically on the ${componentObj.name} of the research proposal.`;
-                } else {
-                    componentPrompt = "Focus on any key aspect of the research proposal.";
+                } catch (error) {
+                    console.error("AI Service Error:", error);
+                    throw new Error("Sorry, I'm having trouble connecting to the AI service. Please try again.");
                 }
             }
 
-            const instructionPrompt = `You are a strict, highly critical Senior High School research panel defense judge. Your sole source of absolute truth is the research proposal provided below.
 
-CRITICAL EXECUTION PROTOCOLS:
-1. TRUST THE DATA: When evaluating a question, you must read all sections of the matching proposal.
-2. EXTRACTION OVER GUESSING: If the information is present or clearly implied by their methodology/sampling, extract it. Do NOT guess outside information.
-3. NO LAZY REFUSALS: You are prohibited from responding with "This information is not explicitly detailed" if the answer can be synthesized from the text.
-4. RESPONDENT RULES: Frame the answer in the third person plural ('The researchers...').
+            const instructionPrompt = `You are a strict, highly critical Senior High School research panel defense judge. Your sole source of absolute truth is the research proposal provided.
+
+CRITICAL RULES:
+1. TRUST THE DATA: Extract information directly from the proposal
+2. NO GUESSING: Only use information explicitly stated or clearly implied
+3. NO LAZY REFUSALS: Never say "not detailed" if answerable from text
+4. FRAME: Use third person plural ('The researchers...')
+5. FORMAT: Return ONLY valid JSON {"question": "...", "answer": "..."}
 
 RESEARCH PROPOSAL:
 ${scopeMetadata.dataDump}
 
-${difficultyPrompt} ${componentPrompt} As a panelist, ask a short, direct, and a specific question about their research based ONLY on the provided information and use simple vocabulary. The student researchers will respond in third person plural ('The researchers...') using ONLY information from their proposal. Provide the question and answer in JSON format: {"question": "...", "answer": "..."}`;
+${difficultyPrompt} ${componentPrompt} As a panelist, ask a short, direct, and specific question about their research based ONLY on the provided information. The student researchers will respond in third person plural ('The researchers...') using ONLY information from their proposal. Provide the question and answer in JSON format: {"question": "...", "answer": "..."}`;
 
             try {
-                // 3. Send request to your own server-side bridge with model fallback
-                const parsedPackage = await callAIModel(instructionPrompt);
+                // 3. Call AI with flashcard type
+                const structuredData = await callAIModel(instructionPrompt, 'flashcard');
 
-                // 4. Parse the AI response
-                const structuredData = JSON.parse(parsedPackage.choices[0].message.content);
-
-                // 5. Update your app state
+                // 4. Update your app state
                 generatedCardsCollection.push({
                     label: `Title ${targetProposalNum}`,
                     question: structuredData.question,
@@ -1525,11 +1507,12 @@ ${difficultyPrompt} ${componentPrompt} As a panelist, ask a short, direct, and a
 
             } catch (error) {
                 console.error("Simulation error:", error);
-                alert("Connection failed. Please ensure your Vercel API bridge is deployed correctly.");
+                alert(error.message);
             } finally {
                 screenOverlayLoader.style.display = 'none';
             }
         }
+
 
         function syncCardDisplaySurface() {
             if (executionPointerIndex === -1) return;
@@ -1680,17 +1663,16 @@ ${difficultyPrompt} ${componentPrompt} As a panelist, ask a short, direct, and a
 
                 const prompt = `${context}\n\nUser question: ${message}\n\nPlease provide a helpful, accurate response based on the research proposals. Use simple language and be concise.`;
 
-                // Call AI with fallback
-                const response = await callAIModel(prompt);
-                const answer = response.choices[0].message.content;
+                // Call AI with chat type
+                const response = await callAIModel(prompt, 'chat');
 
                 // Remove typing indicator and add actual response
                 typingIndicator.remove();
-                addMessageToChat(answer, 'bot');
+                addMessageToChat(response.content, 'bot');
 
                 // Save to chat history
                 chatHistory.push({ role: 'user', content: message });
-                chatHistory.push({ role: 'assistant', content: answer });
+                chatHistory.push({ role: 'assistant', content: response.content });
                 localStorage.setItem('chatHistory', JSON.stringify(chatHistory));
 
             } catch (error) {
@@ -1699,6 +1681,7 @@ ${difficultyPrompt} ${componentPrompt} As a panelist, ask a short, direct, and a
                 console.error('Chatbot error:', error);
             }
         }
+
 
         function addMessageToChat(message, sender) {
             const messagesContainer = document.getElementById('chatbotMessages');
