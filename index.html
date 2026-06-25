@@ -1231,14 +1231,6 @@
             const screenOverlayLoader = document.getElementById('loader');
             screenOverlayLoader.style.display = 'flex';
 
-            // Show loader on both sides
-            document.querySelectorAll('.card-face').forEach(face => {
-                const loader = face.querySelector('.loader');
-                if (loader) {
-                    loader.style.display = 'flex';
-                }
-            });
-
             try {
                 // 2. Prepare the prompt with difficulty and component
                 const scopeMetadata = studyRepositoryContext[targetProposalNum];
@@ -1271,10 +1263,9 @@
                     }
                 }
 
-                const instructionPrompt = `You are a tough panel defense judge for high school research. The student researchers have proposed a study titled "${scopeMetadata.title}". ${difficultyPrompt} ${componentPrompt} As a panelist, ask a specific question about their research data or findings. The student researchers will respond in third person plural ('The researchers chose...'). Provide the question and answer in JSON format: {"question": "...", "answer": "..."}`;
+                const instructionPrompt = `You are a tough panel defense judge for high school research. The student researchers have proposed a study titled "${scopeMetadata.title}". ${difficultyPrompt} ${componentPrompt} As a panelist, ask a specific question about their research data or findings. The student researchers will respond in third person plural ('The researchers chose...') using ONLY information from their proposal. Provide the question and answer in JSON format: {"question": "...", "answer": "..."}`;
 
                 // 3. Send request to your own server-side bridge
-                // This is safe because your API Key is kept in Vercel's Environment Variables
                 const response = await fetch("/api/chat", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -1286,7 +1277,6 @@
                 const parsedPackage = await response.json();
 
                 // 4. Parse the AI response
-                // Note: Depending on how your API bridge returns data, you may need to adjust this
                 const structuredData = JSON.parse(parsedPackage.choices[0].message.content);
 
                 // 5. Update your app state
@@ -1310,12 +1300,9 @@
                 alert("Connection failed. Please ensure your Vercel API bridge is deployed correctly.");
             } finally {
                 screenOverlayLoader.style.display = 'none';
-                // Hide loaders on both sides
-                document.querySelectorAll('.card-face .loader').forEach(loader => {
-                    loader.style.display = 'none';
-                });
             }
         }
+
 
 
         function renderHistoryPanelUI() {
