@@ -447,20 +447,24 @@
         .flashcard-wrapper {
             width: 100%;
             max-width: 600px;
-            height: 350px;
+            min-height: 350px;
+            /* Minimum height */
             perspective: 1200px;
             padding: 0 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .flashcard {
             width: 100%;
-            height: 100%;
+            min-height: 350px;
+            /* Minimum height */
             position: relative;
             transform-style: preserve-3d;
             transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
             cursor: pointer;
             -webkit-tap-highlight-color: transparent;
-            /* Prevents flash on tap */
         }
 
         .flashcard.flipped {
@@ -470,7 +474,8 @@
         .card-face {
             position: absolute;
             width: 100%;
-            height: 100%;
+            min-height: 350px;
+            /* Minimum height */
             backface-visibility: hidden;
             padding: 30px;
             display: flex;
@@ -479,8 +484,6 @@
             border-radius: 20px;
             overflow: hidden;
             transform-style: preserve-3d;
-            -webkit-overflow-scrolling: touch;
-            /* Add this */
         }
 
 
@@ -545,13 +548,12 @@
             font-weight: 700;
             color: var(--text-dark);
             display: block;
-            height: calc(100% - 80px);
-            overflow-y: scroll;
-            /* Changed from auto to scroll */
+            flex: 1;
+            overflow-y: auto;
             margin-top: 40px;
             padding-right: 10px;
             -webkit-overflow-scrolling: touch;
-            /* Add this for iOS momentum scrolling */
+            max-height: none;
         }
 
         .card-back .card-text {
@@ -559,13 +561,12 @@
             text-align: left;
             font-weight: 600;
             color: #2b5900;
-            overflow-y: scroll;
-            /* Changed from auto to scroll */
-            height: calc(100% - 80px);
+            overflow-y: auto;
+            flex: 1;
             padding-right: 15px;
             padding-top: 10px;
             -webkit-overflow-scrolling: touch;
-            /* Add this for iOS momentum scrolling */
+            max-height: none;
         }
 
 
@@ -1042,28 +1043,26 @@
                 </div>
             </div>
 
-            <div class="flashcard-section">
-                <div class="flashcard-wrapper">
-                    <div class="flashcard" id="flashcard" onclick="performFlip()">
-                        <div class="loader" id="loader">Generating Question...</div>
+<div class="flashcard-section">
+    <div class="flashcard-wrapper">
+        <div class="flashcard" id="flashcard" onclick="performFlip()">
+            <div class="loader" id="loader">Generating Question...</div>
 
-                        <div class="card-face card-front">
-                            <div class="card-tag" id="frontTag">Select Lesson</div>
-                            <div class="card-text" id="frontText">Choose a proposal above. The panel will ask you a
-                                question about your research.</div>
-                            <div class="card-hint">Click to check</div>
-                            <button class="btn-photo" onclick="captureAndSavePhoto(event)">📷</button>
-                        </div>
-
-                        <div class="card-face card-back">
-                            <div class="card-tag">Our Response</div>
-                            <div class="card-text" id="backText">Your solid defense answer will appear here.</div>
-                            <div class="card-hint">Click to flip</div>
-                            <button class="btn-photo" onclick="captureAndSavePhoto(event)">📷</button>
-                        </div>
-                    </div>
-                </div>
+            <div class="card-face card-front">
+                <div class="card-tag" id="frontTag">Select Lesson</div>
+                <div class="card-text" id="frontText">Choose a proposal above. The panel will ask you a question about your research.</div>
+                <button class="btn-photo" onclick="captureAndSavePhoto(event)">📷</button>
             </div>
+
+            <div class="card-face card-back">
+                <div class="card-tag">Our Response</div>
+                <div class="card-text" id="backText">Your solid defense answer will appear here.</div>
+                <button class="btn-photo" onclick="captureAndSavePhoto(event)">📷</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 
             <div class="selectors-title">Select Research Proposal</div>
             <div class="proposal-selector">
