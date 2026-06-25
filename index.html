@@ -1263,17 +1263,6 @@
 
             const instructionPrompt = `You are a tough panel defense judge for high school research. The student researchers have proposed a study titled "${scopeMetadata.title}". ${difficultyPrompt} ${componentPrompt} As a panelist, ask a specific question about their research based ONLY on the provided information. The student researchers will respond in third person plural ('The researchers chose...') using ONLY information from their proposal. Provide the question and answer in JSON format: {"question": "...", "answer": "..."}`;
 
-            // Add this validation after parsing the response
-            const structuredData = JSON.parse(parsedPackage.choices[0].message.content);
-
-            // Validate that answer is based on the research proposal
-            if (!structuredData.answer.includes("researchers") ||
-                structuredData.answer.toLowerCase().includes("hypothetical") ||
-                structuredData.answer.toLowerCase().includes("might have") ||
-                structuredData.answer.toLowerCase().includes("could have")) {
-                throw new Error("Invalid response format - answer must be based on research data");
-            }
-
 
             try {
                 // 3. Send request to your own server-side bridge
