@@ -585,7 +585,6 @@
             border: 2px solid var(--duo-gray);
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            box-sizing: border-box;
         }
 
         .btn-actions {
@@ -1231,41 +1230,54 @@
             const screenOverlayLoader = document.getElementById('loader');
             screenOverlayLoader.style.display = 'flex';
 
-            try {
-                // 2. Prepare the prompt with difficulty and component
-                const scopeMetadata = studyRepositoryContext[targetProposalNum];
+            // 2. Prepare the prompt with difficulty and component
+            const scopeMetadata = studyRepositoryContext[targetProposalNum];
 
-                let difficultyPrompt = "";
-                switch (currentDifficulty) {
-                    case 'easy':
-                        difficultyPrompt = "Create a basic question focusing on fundamental concepts and data.";
-                        break;
-                    case 'medium':
-                        difficultyPrompt = "Create a moderate question that tests understanding of methodology and application of research data.";
-                        break;
-                    case 'hard':
-                        difficultyPrompt = "Create a challenging question that requires critical analysis of research findings and data interpretation.";
-                        break;
-                }
+            let difficultyPrompt = "";
+            switch (currentDifficulty) {
+                case 'easy':
+                    difficultyPrompt = "Create a basic question focusing on fundamental concepts and data.";
+                    break;
+                case 'medium':
+                    difficultyPrompt = "Create a moderate question that tests understanding of methodology and application of research data.";
+                    break;
+                case 'hard':
+                    difficultyPrompt = "Create a challenging question that requires critical analysis of research findings and data interpretation.";
+                    break;
+            }
 
-                let componentPrompt = "";
-                if (currentComponent === 'all') {
-                    // Randomly select a component
-                    const randomComponent = researchComponents[Math.floor(Math.random() * researchComponents.length)];
-                    componentPrompt = `Focus specifically on the ${randomComponent.name} of the research proposal.`;
+            let componentPrompt = "";
+            if (currentComponent === 'all') {
+                // Randomly select a component
+                const randomComponent = researchComponents[Math.floor(Math.random() * researchComponents.length)];
+                componentPrompt = `Focus specifically on the ${randomComponent.name} of the research proposal.`;
+            } else {
+                // Find the component name
+                const componentObj = researchComponents.find(c => c.key === currentComponent);
+                if (componentObj) {
+                    componentPrompt = `Focus specifically on the ${componentObj.name} of the research proposal.`;
                 } else {
-                    // Find the component name
-                    const componentObj = researchComponents.find(c => c.key === currentComponent);
-                    if (componentObj) {
-                        componentPrompt = `Focus specifically on the ${componentObj.name} of the research proposal.`;
-                    } else {
-                        componentPrompt = "Focus on any key aspect of the research proposal.";
-                    }
+                    componentPrompt = "Focus on any key aspect of the research proposal.";
                 }
+            }
 
-                const instructionPrompt = `You are a tough panel defense judge for high school research. The student researchers have proposed a study titled "${scopeMetadata.title}". ${difficultyPrompt} ${componentPrompt} As a panelist, ask a specific question about their research data or findings. The student researchers will respond in third person plural ('The researchers chose...') using ONLY information from their proposal. Provide the question and answer in JSON format: {"question": "...", "answer": "..."}`;
+            const instructionPrompt = `You are a tough panel defense judge for high school research. The student researchers have proposed a study titled "${scopeMetadata.title}". ${difficultyPrompt} ${componentPrompt} As a panelist, ask a specific question about their research based ONLY on the provided information. The student researchers will respond in third person plural ('The researchers chose...') using ONLY information from their proposal. Provide the question and answer in JSON format: {"question": "...", "answer": "..."}`;
 
+            // Add this validation after parsing the response
+            const structuredData = JSON.parse(parsedPackage.choices[0].message.content);
+
+            // Validate that answer is based on the research proposal
+            if (!structuredData.answer.includes("researchers") ||
+                structuredData.answer.toLowerCase().includes("hypothetical") ||
+                structuredData.answer.toLowerCase().includes("might have") ||
+                structuredData.answer.toLowerCase().includes("could have")) {
+                throw new Error("Invalid response format - answer must be based on research data");
+            }
+
+
+            try {
                 // 3. Send request to your own server-side bridge
+                // This is safe because your API Key is kept in Vercel's Environment Variables
                 const response = await fetch("/api/chat", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -1277,6 +1289,7 @@
                 const parsedPackage = await response.json();
 
                 // 4. Parse the AI response
+                // Note: Depending on how your API bridge returns data, you may need to adjust this
                 const structuredData = JSON.parse(parsedPackage.choices[0].message.content);
 
                 // 5. Update your app state
@@ -1303,7 +1316,21 @@
             }
         }
 
+        function syncCardDisplaySurface() {
+            if (executionPointerIndex === -1) return;
+            const cardContext = generatedCardsCollection[executionPointerIndex];
+            document.getElementById('flashcard').classList.remove('flipped');
+            setTimeout(() => {
+                document.getElementById('frontTag').innerText = `${cardContext.label} - ${cardContext.difficulty.charAt(0).toUpperCase() + cardContext.difficulty.slice(1)}`;
+                document.getElementById('frontText').innerText = cardContext.question;
+                document.getElementById('backText').innerText = cardContext.answer;
 
+                // Update history item active state
+                document.querySelectorAll('.history-item').forEach((element, DOMIdx) => {
+                    element.classList.toggle('active', DOMIdx === executionPointerIndex);
+                });
+            }, 150);
+        }
 
         function renderHistoryPanelUI() {
             const trackingListContainer = document.getElementById('historyList');
