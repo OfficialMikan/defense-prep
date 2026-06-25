@@ -9,13 +9,19 @@ export default async function handler(req, res) {
 
     // Validate API key exists
     if (!process.env.GROQ_API_KEY) {
-        return res.status(500).json({ error: "API key not configured" });
+        console.error("GROQ_API_KEY not found in environment variables");
+        return res.status(500).json({
+            error: "Server configuration error",
+            details: "API key not configured"
+        });
     }
 
-    // Use specified model or default to llama-3.3-70b-versatile
+    // Use specified model or default
     const selectedModel = model || "llama-3.3-70b-versatile";
 
     try {
+        console.log("Making request to Groq API with model:", selectedModel);
+
         const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
             method: "POST",
             headers: {
@@ -30,17 +36,21 @@ export default async function handler(req, res) {
             })
         });
 
+        console.log("Groq API response status:", response.status);
+
         // Check if response is ok
         if (!response.ok) {
             const errorText = await response.text();
             console.error("Groq API Error:", response.status, errorText);
             return res.status(response.status).json({
                 error: "AI service error",
-                details: errorText
+                details: errorText,
+                status: response.status
             });
         }
 
         const data = await response.json();
+        console.log("Successfully received response from Groq API");
         return res.status(200).json(data);
 
     } catch (error) {
