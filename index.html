@@ -1262,26 +1262,27 @@
             }
 
             const instructionPrompt = `
-You are a highly critical, academic research panelist presiding over a Senior High School research defense. Your goal is to evaluate the technical and methodological integrity of the study titled: "${scopeMetadata.title}".
+You are a tough, no-nonsense research panelist judging a high school defense. 
+Study Title: "${scopeMetadata.title}"
 
 ${difficultyPrompt}
 ${componentPrompt}
 
-YOUR OBJECTIVES:
-1. IDENTIFY LOGICAL FLAWS: Probe for inconsistencies, such as mismatches between the research design and the research questions (e.g., claiming a "correlational" study but using "causal" language like 'effect' or 'impact').
-2. CHALLENGE METHODOLOGY: Question the validity of their sampling, the definition of variables, or the appropriateness of their chosen statistical analysis.
-3. ADOPT A DEMANDING PERSONA: Use a formal, inquisitive, and firm academic tone. Do not be helpful; be a judge.
-4. GROUNDED IN TRUTH: Your question must be derived SOLELY from the provided proposal text. Do not bring in outside opinions.
+YOUR TASK:
+1. Ask ONE short, simple, and important question that targets a specific flaw or logic gap in their proposal.
+2. Ensure the question uses simple, direct language. 
+3. SELF-VERIFICATION: Before generating the JSON, carefully re-read the provided proposal. Do NOT say a question is "out of scope" or a "limitation" if the answer is actually present in the text. Only admit a limitation if the proposal truly fails to address the point.
 
 RESEARCHER RESPONSE GUIDELINES:
-- The student researchers must respond in the third person plural ('The researchers...').
-- They must use ONLY the provided proposal information to justify their choices.
-- If the proposal does not address the critique, they must admit the limitation rather than inventing justifications.
+- Respond in third person plural ('The researchers...').
+- Use ONLY information from the proposal. 
+- If the information is in the proposal, provide a direct answer. 
+- If and only if the information is missing, clearly state that this is a limitation of the current study.
 
 OUTPUT FORMAT (JSON ONLY):
 {
-  "question": "A concise, incisive question focusing on a specific methodological or logical error.",
-  "answer": "A response from the researchers based strictly on the provided text."
+  "question": "A short, direct question.",
+  "answer": "A factual response derived only from the text. If the proposal contains the answer, provide it. If not, state that it is a limitation."
 }
 `;
 
