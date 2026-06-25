@@ -1261,53 +1261,7 @@
                 }
             }
 
-            const instructionPrompt = `
-
-You are a rigorous, highly critical Senior High School research panelist known for exposing methodological flaws and logical inconsistencies. 
-
-
-
-${difficultyPrompt}
-
-${componentPrompt}
-
-
-
-Your task is to ask the student researchers on their study titled: "${scopeMetadata.title}".
-
-
-
-GUIDELINES FOR YOUR QUESTION:
-
-1. Focus ONLY on a technical, methodological, or logical weakness found in the provided text (e.g., mismatch between title and design, misuse of causal terminology, lack of justification for sampling, or variable operationalization).
-
-2. Do not ask generic questions. Make the question specific to the contents of their research proposal.
-
-3. Adopt a formal, demanding, and probing tone.
-
-4. Base your question STRICTLY on the provided proposal information.
-
-5. Make the question short and direct.
-
-
-
-GUIDELINES FOR THE RESEARCHERS' RESPONSE:
-
-1. The researchers must respond in the third person plural ('The researchers...').
-
-2. The response must use ONLY information explicitly stated in their proposal. 
-
-3. If the proposal does not contain the answer, they must acknowledge the limitation based on their current text rather than inventing information and base their answer on the provided information in the proposal.
-
-
-
-OUTPUT FORMAT:
-
-Return the result strictly as a valid JSON object:
-
-{"question": "...", "answer": "..."}
-
-`;
+            const instructionPrompt = `You are a tough panel defense judge for high school research titled "${scopeMetadata.title}". ${difficultyPrompt} ${componentPrompt} Ask one direct, probing question about a technical or methodological detail found ONLY in the provided proposal. The student researchers must respond in the third person plural ('The researchers...') using ONLY information from their proposal; if the information is present, synthesize it to justify their choices. Output ONLY JSON: {"question": "...", "answer": "..."}`;
 
             try {
                 // 3. Send request to your own server-side bridge
