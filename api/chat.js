@@ -1,4 +1,8 @@
-// /api/chat.js - Fixed version
+// /api/chat.js - Production Fixed Version
+const SYSTEM_INSTRUCTION = `You are an expert academic panelist and research mentor helping students prepare for their Research Title Defense. 
+Your goal is to challenge their study, test their knowledge on research methodologies, help refine their problem statements, and build their presentation confidence. 
+Keep your responses sharp, constructive, structured, and highly practical.`;
+
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: "Method not allowed" });
@@ -6,86 +10,74 @@ export default async function handler(req, res) {
 
     const { prompt, provider, model } = req.body;
 
-    try {
-        let rawContent;
-
-        switch (provider) {
-            case 'groq':
-                rawContent = await callGroqAPI(prompt, model);
-                break;
-            case 'openai':
-                rawContent = await callOpenAIAPI(prompt);
-                break;
-            case 'gemini':
-                rawContent = await callGeminiAPI(prompt);
-                break;
-            case 'anthropic':
-                rawContent = await callAnthropicAPI(prompt);
-                break;
-            case 'mistral':
-                rawContent = await callMistralAPI(prompt);
-                break;
-            default:
-                // Fallback sequence with error handling
-                try {
-                    rawContent = await callGroqAPI(prompt, model);
-                } catch (groqError) {
-                    try {
-                        rawContent = await callMistralAPI(prompt);
-                    } catch (mistralError) {
-                        try {
-                            rawContent = await callAnthropicAPI(prompt);
-                        } catch (anthropicError) {
-                            try {
-                                rawContent = await callGeminiAPI(prompt);
-                            } catch (geminiError) {
-                                // Last resort - try OpenAI even if quota issues
-                                rawContent = await callOpenAIAPI(prompt);
-                            }
-                        }
-                    }
-                }
-        }
-
-        // Clean out any formatting wrappers
-        let cleanText = rawContent.trim();
-        if (cleanText.startsWith("```json")) {
-            cleanText = cleanText.substring(7);
-        }
-        if (cleanText.endsWith("```")) {
-            cleanText = cleanText.substring(0, cleanText.length - 3);
-        }
-
-        // Parse into a validated clean JSON object
-        const jsonResponse = JSON.parse(cleanText.trim());
-        return res.status(200).json(jsonResponse);
-
-    } catch (error) {
-        console.error("API Handler Error:", error);
-        return res.status(500).json({
-            error: "Failed to communicate with AI service",
-            details: error.message
-        });
+    if (!prompt) {
+        return res.status(400).json({ error: "Prompt is required" });
     }
+
+    let rawContent;
+    let errors = [];
+
+    // Collection of API service callers
+    const callers = {
+        groq: () => callGroqAPI(prompt, model),
+        openai: () => callOpenAIAPI(prompt),
+        gemini: () => callGeminiAPI(prompt),
+        anthropic: () => callAnthropicAPI(prompt),
+        mistral: () => callMistralAPI(prompt)
+    };
+
+    // 1. Try requested provider first if specified
+    if (provider && callers[provider]) {
+        try {
+            rawContent = await callers[provider]();
+            return res.status(200).json({ content: rawContent });
+        } catch (err) {
+            console.error(`Primary provider (${provider}) failed:`, err.message);
+            errors.push(`${provider}: ${err.message}`);
+        }
+    }
+
+    // 2. Fallback Cascade Sequence (Executes sequentially if primary choice fails)
+    const fallbackOrder = ['groq', 'gemini', 'mistral', 'anthropic', 'openai'];
+
+    for (const currentProvider of fallbackOrder) {
+        // Skip if we already attempted this provider above and it failed
+        if (provider === currentProvider) continue;
+
+        try {
+            console.log(`Attempting fallback provider: ${currentProvider}`);
+            rawContent = await callers[currentProvider]();
+            if (rawContent) {
+                return res.status(200).json({
+                    content: rawContent,
+                    fallbackUsed: true,
+                    providerUsed: currentProvider
+                });
+            }
+        } catch (err) {
+            console.error(`Fallback provider (${currentProvider}) failed:`, err.message);
+            errors.push(`${currentProvider}: ${err.message}`);
+        }
+    }
+
+    // 3. If everything fails, return detailed diagnostic log
+    return res.status(500).json({
+        error: "All configured AI providers failed. Check system logs.",
+        details: errors
+    });
 }
 
-// System instruction for consistent responses
-const SYSTEM_INSTRUCTION = `You are a strict, highly critical Senior High School research panel defense judge. 
-Your sole source of absolute truth is the research proposal provided.
-CRITICAL RULES:
-1. TRUST THE DATA: Extract information directly from the proposal
-2. NO GUESSING: Only use information explicitly stated or clearly implied
-3. NO LAZY REFUSALS: Never say "not detailed" if answerable from text
-4. FRAME: Use third person plural ('The researchers...')
-5. FORMAT: Return ONLY valid JSON {"question": "...", "answer": "..."}`;
+// --- API Service Callers ---
 
-async function callGroqAPI(prompt, model = "llama-3.1-70b-versatile") {
+async function callGroqAPI(prompt, model) {
     if (!process.env.GROQ_API_KEY) {
         throw new Error("GROQ_API_KEY not configured");
     }
 
-    // Fix for Groq JSON requirement - ensure prompt mentions "json"
-    const jsonPrompt = prompt.includes("json") ? prompt : `json\n${prompt}`;
+    // FIX: Automatically swap decommissioned llama-3.1-70b-versatile with llama-3.3-70b-versatile
+    const activeModel = (model === 'llama-3.1-70b-versatile' || !model)
+        ? 'llama-3.3-70b-versatile'
+        : model;
 
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
@@ -94,14 +86,12 @@ async function callGroqAPI(prompt, model = "llama-3.1-70b-versatile") {
             "Content-Type": "application/json"
         },
         body: JSON.stringify({
-            model: model,
+            model: activeModel,
             messages: [
                 { role: "system", content: SYSTEM_INSTRUCTION },
-                { role: "user", content: jsonPrompt } // Fixed prompt
+                { role: "user", content: prompt }
             ],
-            temperature: 0.1,
-            response_format: { type: "json_object" },
-            max_tokens: 1000
+            temperature: 0.3
         })
     });
 
@@ -112,6 +102,46 @@ async function callGroqAPI(prompt, model = "llama-3.1-70b-versatile") {
 
     const data = await response.json();
     return data.choices[0].message.content;
+}
+
+async function callGeminiAPI(prompt) {
+    if (!process.env.GEMINI_API_KEY) {
+        throw new Error("GEMINI_API_KEY not configured");
+    }
+
+    // FIX: Using the fully supported production v1 stable endpoint path
+    const targetUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
+
+    const response = await fetch(targetUrl, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            contents: [
+                {
+                    parts: [
+                        { text: `${SYSTEM_INSTRUCTION}\n\nUser Prompt:\n${prompt}` }
+                    ]
+                }
+            ],
+            generationConfig: {
+                temperature: 0.3,
+                maxOutputTokens: 1200
+            }
+        })
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Gemini API Error: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
+        return data.candidates[0].content.parts[0].text;
+    }
+    throw new Error("Gemini API parsed successfully but returned empty context contents.");
 }
 
 async function callOpenAIAPI(prompt) {
@@ -126,13 +156,12 @@ async function callOpenAIAPI(prompt) {
             "Content-Type": "application/json"
         },
         body: JSON.stringify({
-            model: "gpt-3.5-turbo", // Use cheaper model to avoid quota issues
+            model: "gpt-4o-mini",
             messages: [
                 { role: "system", content: SYSTEM_INSTRUCTION },
                 { role: "user", content: prompt }
             ],
-            temperature: 0.1,
-            max_tokens: 1000
+            temperature: 0.3
         })
     });
 
@@ -145,47 +174,6 @@ async function callOpenAIAPI(prompt) {
     return data.choices[0].message.content;
 }
 
-async function callGeminiAPI(prompt) {
-    if (!process.env.GEMINI_API_KEY) {
-        throw new Error("GEMINI_API_KEY not configured");
-    }
-
-    // FIXED: Use correct model name
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            contents: [{
-                parts: [{ text: prompt }]
-            }],
-            systemInstruction: {
-                parts: [{ text: SYSTEM_INSTRUCTION }]
-            },
-            generationConfig: {
-                temperature: 0.1,
-                responseMimeType: "application/json",
-                maxOutputTokens: 1000
-            }
-        })
-    });
-
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Gemini API Error: ${response.status} - ${errorText}`);
-    }
-
-    const data = await response.json();
-
-    // Handle Gemini response format
-    if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-        return data.candidates[0].content.parts[0].text;
-    }
-
-    throw new Error("Unexpected Gemini response format");
-}
-
 async function callAnthropicAPI(prompt) {
     if (!process.env.ANTHROPIC_API_KEY) {
         throw new Error("ANTHROPIC_API_KEY not configured");
@@ -196,12 +184,12 @@ async function callAnthropicAPI(prompt) {
         headers: {
             "x-api-key": process.env.ANTHROPIC_API_KEY,
             "anthropic-version": "2023-06-01",
-            "content-type": "application/json"
+            "Content-Type": "application/json"
         },
         body: JSON.stringify({
             model: "claude-3-haiku-20240307",
-            max_tokens: 1000,
-            temperature: 0.1,
+            max_tokens: 1200,
+            temperature: 0.2,
             messages: [
                 { role: "user", content: `${SYSTEM_INSTRUCTION}\n\n${prompt}` }
             ]
@@ -234,8 +222,7 @@ async function callMistralAPI(prompt) {
                 { role: "system", content: SYSTEM_INSTRUCTION },
                 { role: "user", content: prompt }
             ],
-            temperature: 0.1,
-            max_tokens: 1000
+            temperature: 0.3
         })
     });
 
