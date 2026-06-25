@@ -569,7 +569,7 @@
             position: absolute;
             background: rgba(255, 255, 255, 0.95);
             width: 100%;
-            min-height: 100%;
+            height: 100%;
             top: 0;
             left: 0;
             display: flex;
@@ -585,17 +585,23 @@
             border: 2px solid var(--duo-gray);
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            transform: rotateY(0deg) !important;
         }
 
-        .btn-photo {
+        .btn-actions {
             position: absolute;
             top: 15px;
             right: 25px;
-            background: var(--duo-yellow);
-            color: white;
+            display: flex;
+            gap: 8px;
+            z-index: 5;
+            transform: translateZ(1px);
+        }
+
+        .btn-action {
+            background: white;
+            color: var(--text-dark);
             border: none;
-            border-bottom: 4px solid var(--duo-yellow-shadow);
+            border-bottom: 4px solid var(--duo-gray);
             padding: 8px 12px;
             border-radius: 12px;
             cursor: pointer;
@@ -603,17 +609,27 @@
             font-size: 1.2rem;
             font-weight: 800;
             transition: all 0.1s ease;
-            z-index: 5;
-            transform: translateZ(1px);
         }
 
-        .btn-photo:hover {
-            background: #ffce1a;
+        .btn-action:hover {
+            opacity: 0.9;
         }
 
-        .btn-photo:active {
+        .btn-action:active {
             border-bottom-width: 0px;
             transform: translateY(4px);
+        }
+
+        .btn-photo-action {
+            background: var(--duo-yellow);
+            border-bottom-color: var(--duo-yellow-shadow);
+            color: white;
+        }
+
+        .btn-copy-action {
+            background: var(--duo-blue);
+            border-bottom-color: var(--duo-blue-shadow);
+            color: white;
         }
 
         .proposal-selector {
@@ -850,11 +866,14 @@
                 padding: 5px;
             }
 
-            .btn-photo {
-                padding: 6px 10px;
-                font-size: 1rem;
+            .btn-actions {
                 top: 12px;
                 right: 20px;
+            }
+
+            .btn-action {
+                padding: 6px 10px;
+                font-size: 1rem;
             }
 
             .modal-box {
@@ -946,6 +965,16 @@
 
             .card-back .card-text {
                 font-size: 0.95rem;
+            }
+
+            .btn-actions {
+                top: 10px;
+                right: 15px;
+            }
+
+            .btn-action {
+                padding: 5px 8px;
+                font-size: 0.9rem;
             }
         }
     </style>
@@ -1047,14 +1076,23 @@
                             <div class="card-text" id="frontText">Choose a proposal above. The panel will ask you a
                                 question about your research.</div>
                             <div class="card-hint">Click to check</div>
-                            <button class="btn-photo" onclick="captureAndSavePhoto(event)">📷</button>
+                            <div class="btn-actions">
+                                <button class="btn-action btn-photo-action"
+                                    onclick="captureAndSavePhoto(event)">📷</button>
+                                <button class="btn-action btn-copy-action"
+                                    onclick="copyText(event, 'front')">📋</button>
+                            </div>
                         </div>
 
                         <div class="card-face card-back">
-                            <div class="card-tag">Our Response</div>
-                            <div class="card-text" id="backText">Your solid defense answer will appear here.</div>
+                            <div class="card-tag">Researchers' Response</div>
+                            <div class="card-text" id="backText">The researchers' defense answer will appear here.</div>
                             <div class="card-hint">Click to flip</div>
-                            <button class="btn-photo" onclick="captureAndSavePhoto(event)">📷</button>
+                            <div class="btn-actions">
+                                <button class="btn-action btn-photo-action"
+                                    onclick="captureAndSavePhoto(event)">📷</button>
+                                <button class="btn-action btn-copy-action" onclick="copyText(event, 'back')">📋</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1102,50 +1140,66 @@
 
         const studyRepositoryContext = {
             1: {
-                title: "Relationship Between Daily Jeepney Commuting and Classroom Tardiness Among STEM Students",
-                dataDump: `Group Four
-    Group Members: Gonzales, Samantha Nicole B., Manarang, Mikan M., Almario, Joyce P., Bondoc, Cassandra D., Casupanan, Rhian L., Dizon, Lynx Leonard G.
-    Strand & Section: Grade 12 STEM (A) - COLOSSIANS
-    Proposed Title: Relationship Between Daily Jeepney Commuting and Tardiness Among STEM Students
-    Introduction: In the lives of millions of students living in the Philippines, daily commuting is a structural problem that cannot be avoided due to the use of public utility jeepneys (PUJs) as the primary mode of mass transit. In accordance with transport data, there are more than 8.9 million people who use PUJs regularly for their activities; this type of mass transit is greatly affected by numerous issues including traffic jams, lack of vehicles, and queues at terminals (Musa, 2023). It should be noted that STEM students with a densely structured academic curriculum, which includes laboratory work conducted in the early morning, have to face a volatile morning commuting pattern. Investigation of such a problem is important since daily problems associated with commuting affect not only the level of attendance but also the preparedness of students for morning lessons because of the sacrifice of sleep and mental strength in order to secure a ride.
-    In terms of the structure of the research problem, this dynamic involves the correlation of two measured variables: the independent variable, namely, daily PUJ commuting (measured by the time spent waiting and traveling) and the dependent variable, namely, student tardiness (measured by the frequency of late arrivals and the total minutes of delay for first-period classes). From the perspective of local literature, it can be noted that in spite of all the efforts taken by students to adapt to such conditions, the problem of delays remains relevant and 79% of commuters still experience excessive wait times, which results in the development of a behavioral trigger associated with morning lateness (The Passenger Forum, as cited in Rodriguez et al., 2022). At the same time, this dynamic is explained by the Commuting Stress Theory, which suggests that the lack of environmental control over commute options leads to a systematic depletion of behavioral and psychological resources before reaching the destination (Shan, 2026).
-    Global and local literature proves that prolonged and volatile commuting greatly affects the rate of student attendance. As a result of a prolonged commute and a lack of control over public transportation, student truancy and lateness increase; consequently, the accumulation of lost lessons negatively affects overall academic engagement (David et al., 2025). At the same time, while in some cases students try to compensate for their lateness and save their final grades from decreasing, the process of physical and psychological stress and lost lesson time still affects them negatively (Mangotara & Basmayor, 2025). Hence, this research is very important and may provide localized, quantitative data in order to develop flexible policies, supporting mechanisms, and interventions aimed at protecting the well-being of STEM students.
-    Motivation of the Researcher: The researchers chose the topic "Relationship Between Daily Jeepney Commuting and Tardiness Among STEM Students" because they observed that transportation issues experienced on a daily basis may affect the punctuality and experience of students in school. Since most STEM students rely on jeepneys as their main source of transport, the process of reaching school every day might be impacted by several factors, such as long waiting times, traffic congestion, unpredictable delays, and lack of transport availability. The motivation for conducting this study came from the researchers’ observations of students who experience difficulties in maintaining punctuality despite their efforts to arrive on time. The challenges encountered during daily commuting may add to the stress of being a student while balancing academic work. Repeated tardiness caused by transportation-related factors may negatively impact students’ participation, preparedness, and ability to fully engage in their learning environment. Through this research, the researchers aim to determine the relationship between daily jeepney travel and tardiness among STEM students. The main objective of this study is to gain further knowledge about how commuting experiences can affect students’ punctuality and show the importance of considering commuting problems in relation to their academics. The findings of this study may serve as a basis for creating awareness and developing possible strategies that can support commuting students in achieving better attendance, time management, and academic performance.
-    Research Gap: Although there is considerable evidence in international and local literature about the effect of long commuting time on school attendance and punctuality in general, current transportation studies concentrate mostly on the experiences of tertiary students or urban mass transit systems. There is still insufficient empirical evidence on the relation between the commuting experience via PUJ and classroom punctuality of the Senior High School STEM students in a specific suburban environment – Magalang municipality. This absence of localized research represents a gap in educational literature since the students from the Science Technology Engineering and Mathematics (STEM) track have a very special and complex curriculum which includes morning classes and performance-based assignments. Current transport studies neglect the effects of this special curriculum on the commuting process since they do not address the specifics of vehicle availability, queues in terminals, and traffic in the Magalang region. That is why the present study aims to cover the gap by conducting research among students of Magalang Christian Ecumenical School Inc.
-    Statement of the Problem: This study aims to determine the relationship between daily public utility jeepney (PUJ) commuting and classroom tardiness among Senior High School STEM students. Specifically, it seeks to answer the following questions: 1.) What is the profile of the students daily PUJ commute in terms of: Average morning waiting time (in minutes), Total transit duration (in minutes)? 2.) What is the level of student tardiness among the respondents in terms of: Weekly frequency of late arrivals, Accumulated total minutes of delay during first-period classes? 3.) Is there a significant relationship between daily PUJ commuting factors and the level of student tardiness among STEM students?
-    Research Design: This study will investigate the association between STEM students’ daily jeepney trips and their punctuality using quantitative research, specifically a correlational research design. A correlational research design allows researchers to determine whether a significant relationship exists between two variables without manipulating or controlling the variables, while data are gathered in a natural setting where students’ daily jeepney commutes occur, including travel time and related factors, as well as their punctuality in class (Sreekumar, 2026).
-    Respondents: Our target respondents are 50 Grade 12 STEM students from Magalang Christian Ecumenical School Inc. (MCESI) during the school year 2026-2027. These students were selected through purposive non-random sampling, which means that only students who commute via jeepneys everyday can participate in this study.
-    Research Method: The researchers will use a structured questionnaire to gather data regarding the commuting habits and tardiness frequency of Grade 12 STEM students. After the permission is granted from the school administration, the questionnaire will be distributed to selected respondents through purposive non-random sampling. The collected data will be analyzed using frequency, percentage, and correlation analysis.`
+                title: "Relationship Between Daily Jeepney Commuting and Tardiness Among STEM Students",
+                dataDump: `Group # 4 Members: Gonzales, Samantha Nicole B., Manarang, Mikan M., Almario, Joyce P., Bondoc, Cassandra D., Casupanan, Rhian L., Dizon, Lynx Leonard G. Strand & Section: Grade 12 STEM (A) - COLOSSIANS. 
+
+Proposed Title: Relationship Between Daily Jeepney Commuting and Tardiness Among STEM Students. 
+
+Introduction: In the lives of millions of students living in the Philippines, daily commuting is a structural problem that cannot be avoided due to the use of public utility jeepneys (PUJs) as the primary mode of mass transit. In accordance with transport data, there are more than 8.9 million people who use PUJs regularly for their activities; this type of mass transit is greatly affected by numerous issues including traffic jams, lack of vehicles, and queues at terminals (Musa, 2023). It should be noted that STEM students with a densely structured academic curriculum, which includes laboratory work conducted in the early morning, have to face a volatile morning commuting pattern. Investigation of such a problem is important since daily problems associated with commuting affect not only the level of attendance but also the preparedness of students for morning lessons because of the sacrifice of sleep and mental strength in order to secure a ride. In terms of the structure of the research problem, this dynamic involves the correlation of two measured variables: the independent variable, namely, daily PUJ commuting (measured by the time spent waiting and traveling) and the dependent variable, namely, student tardiness (measured by the frequency of late arrivals and the total minutes of delay for first-period classes). From the perspective of local literature, it can be noted that in spite of all the efforts taken by students to adapt to such conditions, the problem of delays remains relevant and 79% of commuters still experience excessive wait times, which results in the development of a behavioral trigger associated with morning lateness. At the same time, this dynamic is explained by the Commuting Stress Theory, which suggests that the lack of environmental control over commute options leads to a systematic depletion of behavioral and psychological resources before reaching the destination. Global and local literature proves that prolonged and volatile commuting greatly affects the rate of student attendance. As a result of a prolonged commute and a lack of control over public transportation, student truancy and lateness increase; consequently, the accumulation of lost lessons negatively affects overall academic engagement. At the same time, while in some cases students try to compensate for their lateness and save their final grades from decreasing, the process of physical and psychological stress and lost lesson time still affects them negatively. Hence, this research is very important and may provide localized, quantitative data in order to develop flexible policies, supporting mechanisms, and interventions aimed at protecting the well-being of STEM students. 
+
+Motivation of the Researcher: The researchers chose the topic “Relationship Between Daily Jeepney Commuting and Tardiness Among STEM Students” because they observed that transportation issues experienced on a daily basis may affect the punctuality and experience of students in school. Since most STEM students rely on jeepneys as their main source of transport, the process of reaching school every day might be impacted by several factors, such as long waiting times, traffic congestion, unpredictable delays, and lack of transport availability. The motivation for conducting this study came from the researchers’ observations of students who experience difficulties in maintaining punctuality despite their efforts to arrive on time. The challenges encountered during daily commuting may add to the stress of being a student while balancing academic work. Repeated tardiness caused by transportation-related factors may negatively impact students’ participation, preparedness, and ability to fully engage in their learning environment. Through this research, the researchers aim to determine the relationship between daily jeepney travel and tardiness among STEM students. The main objective of this study is to gain further knowledge about how commuting experiences can affect students’ punctuality and show the importance of considering commuting problems in relation to their academics. The findings of this study may serve as a basis for creating awareness and developing possible strategies that can support commuting students in achieving better attendance, time management, and academic performance. 
+
+Research Gap: Although there is considerable evidence in international and local literature about the effect of long commuting time on school attendance and punctuality in general, current transportation studies concentrate mostly on the experiences of tertiary students or urban mass transit systems. There is still insufficient empirical evidence on the relation between the commuting experience via PUJ and classroom punctuality of the Senior High School STEM students in a specific suburban environment – Magalang municipality. This absence of localized research represents a gap in educational literature since the students from the Science Technology Engineering and Mathematics (STEM) track have a very special and complex curriculum which includes morning classes and performance-based assignments. Current transport studies neglect the effects of this special curriculum on the commuting process since they do not address the specifics of vehicle availability, queues in terminals, and traffic in the Magalang region. That is why the present study aims to cover the gap by conducting research among students of Magalang Christian Ecumenical School Inc. 
+
+Statement of the Problem: This study aims to determine the relationship between daily public utility jeepney (PUJ) commuting and classroom tardiness among Senior High School STEM students. Specifically, it seeks to answer the following questions: 1. What is the profile of the students' daily PUJ commute in terms of average morning waiting time (in minutes) and total transit duration (in minutes)? 2. What is the level of student tardiness among the respondents in terms of weekly frequency of late arrivals and accumulated total minutes of delay during first-period classes? 3. Is there a significant relationship between daily PUJ commuting factors and the level of student tardiness among STEM students? 
+
+Research Design: This study will investigate the association between STEM students’ daily jeepney trips and their punctuality using quantitative research, specifically a correlational research design. A correlational research design allows researchers to determine whether a significant relationship exists between two variables without manipulating or controlling the variables, while data are gathered in a natural setting where students’ daily jeepney commutes occur, including travel time and related factors, as well as their punctuality in class. 
+
+Respondents: Our target respondents are 50 Grade 12 STEM students from Magalang Christian Ecumenical School Inc. (MCESI) during the school year 2026-2027. These students were selected through purposive non-random sampling, which means that only students who commute via jeepneys everyday can participate in this study. 
+
+Research Method: The researchers will use a structured questionnaire to gather data regarding the commuting habits and tardiness frequency of Grade 12 STEM students. After the permission is granted from the school administration, the questionnaire will be distributed to selected respondents through purposive non-random sampling. The collected data will be analyzed using frequency, percentage, and correlation analysis.`
             },
+
             2: {
-                title: "Effectiveness of AI-Assisted Learning Tools on the Academic Performance of Grade 12 Students",
-                dataDump: `Group Four
-    Group Members: Gonzales, Samantha Nicole S., Manarang, Mikan M., Almario, Joyce P., Bondoc, Cassandra D., Casupanan, Rhian L., Dizon, Lynx Leonard G.
-    Strand & Section: Grade 12 STEM (A) - COLOSSIANS
-    Proposed Title: Effectiveness of AI-Assisted Learning Tools on the Academic Performance of Grade 12 Students
-    Introduction: There exists a paradigm shift occurring in the educational setting due to the rapid evolution of innovative data processing technologies. The application of Artificial Intelligence (AI) as a tool that helps students to perform their school work and individual study sessions can be considered as a groundbreaking innovation in modern educational approaches (Flores & Manocan, 2024). Such an approach becomes particularly relevant for Philippine schools where Grade 12 students encounter the essential year of senior high school filled with academic workloads and sophisticated core subjects. The issue under investigation is relevant since AI platforms have stopped being some kind of novelty. On the contrary, they became a part of classroom reality. Although these tools have earned the reputation of highly-efficient learning devices that can significantly optimize any educational task, engage students more actively, and provide them with highly-personalized learning experience, the fast and uncontrolled adoption of AI technology poses significant risks for student development (Maamor et al., 2024).
-    In terms of the quantitative approach, the current study aims at revealing the direct connection between two different operational variables, namely the use of AI-supported learning tools (platform types, frequency of access, and concrete applications in the learning process) and the level of student academic performance (student grades and assignment quality metrics). Nowadays, a vast number of secondary school students rely on algorithmic platforms such as ChatGPT and Grammarly when performing primary research, collecting daily study materials, writing essays, and making sense of complex topics of the curriculum (Hafeez, 2026). At the same time, the introduction of advanced technological tools implies the emergence of a certain cognitive tradeoff. Although automated engines can serve as highly-efficient learning assistance that answers all students' complex questions almost immediately, these platforms also have a significant negative impact since they lead to the weakening of students' independent thinking and problem-solving skills (Aviso et al., 2026).
-    As it is seen from the analysis above, there is a certain gap between the efficiency of the learning process facilitated by technology and the negative impact on the cognitive abilities of students. This contradiction is well-proven and documented in the framework of contemporary educational studies. According to the empirical research, although the majority of students find AI technologies to be favorable due to increased participation in class activities and improved grades, there is still a great number of risks associated with such an approach (Vieriu & Petrea, 2025). Specifically, uncontrolled dependency on automated tools often turns into the digital shortcut that leads to such threats as reduced student critical thinking skills, risk of academic dishonesty, and overdependence on external software for the basic processes of cognition. Thus, the current quantitative investigation is highly important for the local academic society as it allows gathering concrete information regarding the ways in which Grade 12 learners use AI platforms, thereby providing researchers and school administrators with the empirical baseline necessary to formulate balanced academic frameworks and digital guidelines. 
-    Motivation of the Researcher: The selected topic "Effectiveness of AI-Assisted Learning Tools on the Academic Performance of Grade 12 Students" was due to the fact that the researchers recognized the growing influence of artificial intelligence in the field of education. Due to technological development, numerous students began to use AI-assisted learning tools as additional resources to understand lessons, develop study skills, and support their academic tasks. Nevertheless, the real effectiveness of such tools in enhancing students’ academic performance is still a relevant issue that requires further research. The motivation behind this study came from the researchers’ observations on how there is an increasing application of AI tool usage by learners for academic purposes. Although AI tools are helpful in providing convenience, ease of access, and help in undertaking academic tasks, questions remain regarding whether they effectively improve learners’ knowledge, critical thinking, as well as general performance. This became an area of interest for the researchers, particularly among Grade 12 students who have higher academic demands and need to prepare for their future careers or education. Through this study, the researchers aim to determine the effectiveness of AI-assisted learning tools and their relationship with the academic performance of Grade 12 students. This research aims to provide understanding regarding how the use of AI technology can facilitate the process of learning and whether the use of such technology is positive for the academic performance of students. The findings of this study may help students, teachers, and educational institutions better understand the role of AI in learning and develop responsible and effective ways of integrating technology into education.
-    Research Gap: Despite the fact that current educational literature provides a detailed analysis of the usefulness and learning efficiency of the use of automated software, the existing empirical studies mainly assess the role and influence of AI implementation in higher education or certain technical spheres. The lack of empirical information about Grade 12 Senior High School students studying their final year at a private suburban school such as Magalang Christian Ecumenical School Inc. is a key deficiency in educational literature. This deficiency appears in the lack of local statistical analysis of how the uncontrolled use of tools such as ChatGPT and Grammarly creates a distinct cognitive trade-off and can be used as a kind of shortcut which will limit the development of critical thinking skills. The second important issue is the lack of local statistical information on the correlation between particular operational variables, including the frequency of the usage of AI and specific types of platform applications, with objective academic measures, such as student grades and assignment quality.
-    Statement of the Problem: This study aims to evaluate the effectiveness of utilizing Artificial Intelligence (AI)-assisted learning tools on the academic performance of Grade 12 students. Specifically, it seeks to answer the following questions: 1.) What is the extent of students' utilization of AI-assisted learning tools in terms of: Frequency of access (e.g., daily, weekly), Platform types utilized (e.g., generative chatbots, automated editors), Specific learning applications (e.g., primary research, essay writing, task execution)? 2.) What is the level of academic performance of the Grade 12 students as measured by their: First-semester general averages, Specialized core subject quarterly grades? 3.) Is there a significant effect of AI-assisted learning tool utilization on the academic performance of Grade 12 students?
-    Research Design: This study will employ a quantitative research approach, specifically a true experimental research design, to examine the cause-and-effect relationship between the use of AI-assisted learning tools among Grade 12 students and their academic performance. According to Al Masud (n.d.), this research design allows a high level of precision because the participants are randomly assigned to experimental groups, which helps minimize bias and produce credible results. This research design is appropriate for the study because it enables the researchers to determine whether the use of AI-assisted learning tools among Grade 12 students affects their overall academic performance.
-    Respondents: Our target respondents are 50 Grade 12 students from Magalang Christian Ecumenical School Inc. (MCESI) during the school year 2026-2027. These students were selected through simple random sampling, which means that all Grade 12 students have an equal chance of being chosen to participate in this study.
-    Research Method: The researchers will use a structured questionnaire to collect data on the use of AI-assisted learning tools among Grade 12 students. After obtaining the necessary permissions, questionnaires will be distributed to selected respondents through simple random sampling. The collected data will be analyzed using frequency, percentage, mean, and correlation analysis.`
+                title: "The Relationship of AI-Assisted Learning Tools and the Academic Performance of Students",
+                dataDump: `Group # 4 Members: Gonzales, Samantha Nicole B., Manarang, Mikan M., Almario, Joyce P., Bondoc, Cassandra D., Casupanan, Rhian L., Dizon, Lynx Leonard G. Strand & Section: Grade 12 STEM (A) - COLOSSIANS. 
+
+Proposed Title: The Relationship of AI-Assisted Learning Tools and the Academic Performance of Students. 
+
+Introduction: There exists a paradigm shift occurring in the educational setting due to the rapid evolution of innovative data processing technologies. The application of Artificial Intelligence (AI) as a tool that helps students perform their schoolwork and individual study sessions can be considered a groundbreaking innovation in modern educational approaches (Flores & Manocan, 2024). Such an approach becomes particularly relevant for Philippine schools where Grade 12 students encounter the essential year of senior high school filled with academic workloads and sophisticated core subjects. The issue under investigation is relevant since AI platforms have stopped being a novelty; instead, they have become part of classroom reality. Although these tools are widely recognized as learning resources that may support educational tasks, student engagement, and personalized learning experiences, the rapid and widespread adoption of AI technology has raised questions regarding its relationship with student learning and academic performance (Maamor et al., 2024). In terms of the quantitative approach, the current study aims to examine the relationship between two operational variables, namely the use of AI-assisted learning tools (platform types, frequency of access, and specific applications in the learning process) and the level of student academic performance (student grades and assignment quality metrics). Nowadays, a vast number of secondary school students rely on algorithmic platforms such as ChatGPT and Grammarly when conducting research, gathering study materials, writing essays, and understanding complex topics in the curriculum (Hafeez, 2026). At the same time, the increasing use of advanced technological tools has generated discussions regarding their association with students’ cognitive and academic development. While automated platforms provide immediate access to information and learning support, concerns remain regarding how their usage relates to students’ independent thinking and problem-solving skills (Aviso et al., 2026). As seen from the discussion above, there remains a gap in understanding how the use of AI-assisted learning tools is associated with students’ academic performance and cognitive development. This issue has been widely discussed in contemporary educational studies. According to empirical research, although many students perceive AI technologies as beneficial because of their convenience and support for learning activities, concerns continue to exist regarding academic honesty, critical thinking, and dependence on technology (Vieriu & Petrea, 2025). Thus, the current quantitative investigation is highly important for the local academic community as it seeks to gather concrete information regarding the ways in which Grade 12 learners use AI platforms and how such usage is related to their academic performance. The findings may provide researchers and school administrators with an empirical basis for developing balanced academic frameworks and digital guidelines. 
+
+Motivation of the Researcher: The selected topic, “The Relationship Between AI-Assisted Learning Tools and Students’ Academic Performance,” was chosen because the researchers recognized the growing influence of artificial intelligence in the field of education. Due to technological advancements, many students have begun using AI-assisted learning tools as supplementary resources to understand lessons, develop study skills, and support their academic tasks. However, the relationship between the use of these tools and students’ academic performance remains a relevant issue that requires further investigation. The motivation behind this study came from the researchers’ observations of the increasing use of AI-assisted learning tools among learners for academic purposes. Although AI tools provide convenience, accessibility, and assistance in completing academic tasks, questions remain regarding how their usage relates to learners’ knowledge, critical thinking, and overall academic performance. This became an area of interest for the researchers, particularly among Grade 12 students who face higher academic demands and must prepare for future educational and career opportunities. Through this study, the researchers aim to determine the relationship between the use of AI-assisted learning tools and the academic performance of Grade 12 students. This research seeks to provide a better understanding of how the utilization of AI technology is associated with students’ learning experiences and academic performance. The findings of this study may help students, teachers, and educational institutions better understand the role of AI in learning and promote responsible and effective integration of technology in education. 
+
+Research Gap: Despite the fact that current educational literature provides a detailed analysis of the usefulness and learning efficiency of the use of automated software, the existing empirical studies mainly assess the role and influence of AI implementation in higher education or certain technical spheres. The lack of empirical information about Grade 12 Senior High School students studying their final year at a private suburban school such as Magalang Christian Ecumenical School Inc. is a key deficiency in educational literature. This deficiency appears in the lack of local statistical analysis of how the uncontrolled use of tools such as ChatGPT and Grammarly creates a distinct cognitive trade-off and can be used as a kind of shortcut which will limit the development of critical thinking skills. The second important issue is the lack of local statistical information on the correlation between particular operational variables, including the frequency of the usage of AI and specific types of platform applications, with objective academic measures, such as student grades and assignment quality. 
+
+Statement of the Problem: This study aims to evaluate the effectiveness of utilizing Artificial Intelligence (AI)-assisted learning tools on the academic performance of Grade 12 students. Specifically, it seeks to answer the following questions: 1. What is the extent of students' utilization of AI-assisted learning tools in terms of frequency of access (e.g., daily, weekly), platform types utilized (e.g., generative chatbots, automated editors), and specific learning applications (e.g., primary research, essay writing, task execution)? 2. What is the level of academic performance of the Grade 12 students as measured by their first-semester general averages and specialized core subject quarterly grades from last academic year? 3. Is there a significant relationship of AI-assisted learning tool utilization on the academic performance of Grade 12 students? 
+
+Research Design: This study will employ a quantitative research approach, specifically a non-experimental correlational research design, to examine the relationship between the use of AI-assisted learning tools among Grade 12 students and their academic performance. This research design is appropriate for the study because it enables the researchers to determine how the use of AI-assisted learning tools among Grade 12 students relates to their overall academic performance without manipulating the variables. 
+
+Respondents: Our target respondents are 50 Grade 12 students from Magalang Christian Ecumenical School Inc. (MCESI) during the school year 2026-2027. These students were selected through simple random sampling, which means that all Grade 12 students have an equal chance of being chosen to participate in this study. 
+
+Research Method: The researchers will use a structured questionnaire to collect data on the use of AI-assisted learning tools among Grade 12 students. After obtaining the necessary permissions, questionnaires will be distributed to selected respondents through simple random sampling. The collected data will be analyzed using frequency, percentage, mean, and correlation analysis.`
             },
+
             3: {
-                title: "Comparing STEM Students' Performance in Synchronous and Asynchronous Classes",
-                dataDump: `Group Four
-    Group Members: Gonzales, Samantha Nicole S., Manarang, Mikan M., Almario, Joyce P., Bondoc, Cassandra D., Casupanan, Rhian L., Dizon, Lynx Leonard G.
-    Strand & Section: Grade 12 STEM (A) - COLOSSIANS
-    Proposed Title: Comparing STEM Students' Performance in Synchronous and Asynchronous Classes
-    Introduction: The implementation of digital learning environments has led to the structural division of distance education into two major types of teaching, namely, synchronous and asynchronous instruction. First of all, asynchronous learning allows students to have flexibility since they are free to study and engage with academic materials according to their schedule (The Ohio State University, 2024). In turn, synchronous instruction is considered to be a structured real-time class environment enabling live communication between students and teachers, which leads to immediate mutual feedback (Tovuti LMS, 2025). However, the efficiency of these environments is not guaranteed because engagement of the students within both synchronous and asynchronous frameworks is subject to change depending on individual factors, availability of technology, and overall instructions provided by the educator (Graglia, 2024). Speaking of the academic success and effectiveness of these two approaches from an objective point of view, it should be mentioned that research findings show the difference in terms of academic results. In particular, according to the results of the descriptive quantitative research carried out in the Philippines by Secreto and Tabo (2023), regular attendance at synchronous online meetings contributes to better academic performance and higher final grades as compared to students studying in fully asynchronous settings. Even though the supportive educational content in asynchronous modules, such as pre-recorded lessons and additional files, does not allow vulnerable students to fail, it cannot compare with the benefits of live classes. As far as the reasons for this difference are concerned, they usually relate to motivation and involvement of students in the process of studying. Mohammad et al. (2024) state that many students prefer live interactive schooling formats. This tendency has its reasons since one of the most typical systemic problems of other remote learning formats is disengagement, isolation, and cognitive distraction experienced by students during asynchronous learning process. Therefore, despite the temporal flexibility offered by asynchronous learning, there is a psychological price to pay for this type of education.
-    Motivation of the Researcher: The researchers chose the topic “Comparing STEM Students’ Performance in Synchronous and Asynchronous Classes” because they noticed the major differences in the nature of learning in different forms of instruction. With the increasing use of digital learning environments, synchronous and asynchronous classes have become important approaches that influence how students access lessons, manage their time, and engage with academic activities. The motivation behind this study came from the researchers’ observations that students may have different experiences and levels of performance depending on the learning setup they encounter. Even though synchronous classes allow for real-time interactions, immediate feedback, and direct communication with instructors, asynchronous classes are flexible and allow students to learn at their own pace. However, there may be differences in the ways these two learning environments influence students’ understanding, participation, productivity, and overall academic performance. In this study, the researchers intend to find out which of these two methods, whether synchronous or asynchronous learning, can help students perform better academically. The objective of this study is to gain further insights into how various modes of instruction affect the learning process and may help students, teachers, and academic institutions in developing better ways of providing efficient and accessible learning.
-    Research Gap: Recent educational research has extensively examined the operational models of distance education. However, most empirical studies have assessed remote learning approaches as a general, qualitative phenomenon of student experience or have focused on higher education institutions. There is a critical lack of comparative quantitative data concerning the difference in academic metrics between synchronous and asynchronous learning approaches within a localized Senior High School context – specifically, Grade 12 STEM students at Magalang Christian Ecumenical School Inc. The primary issue that warrants further investigation is the statistical difference in student performance metrics concerning the balance between flexibility and cognitive disengagement. According to literature, although asynchronous learning modules provide more flexible access to time, there is a systemic issue of social isolation and cognitive distraction which results in poor performance metrics. On the other hand, synchronous classes allow instant bidirectional feedback but require consistent technological availability. Previous research lacks quantitative, localized data proving whether the active advantages of synchronous digital communication have a statistically significant effect on final examination scores and quarterly marks compared to isolated, asynchronous self-paced learning. Thus, this quantitative study aims to resolve this issue by conducting a structured comparative analysis to establish clear empirical data on how these two distinct digital environments alter objective academic outcomes.
-    Statement of the Problem: This study aims to compare the academic performance of students exposed to synchronous and asynchronous remote learning modalities. Specifically, it seeks to answer the following questions: 1.) What is the level of academic performance of students in synchronous learning classes as measured by their final examination scores and quarterly marks? 2.) What is the level of academic performance of students in asynchronous learning classes as measured by their final examination scores and quarterly marks? 3.) Is there a significant difference between the academic performance of students in synchronous learning classes and those in asynchronous learning classes?
-    Research Design: This study will employ a causal-comparative research design, which is a method of quantitative research. Costello (2023) states that this approach is used to find and examine the differences between current groups without controlling the factors in order to determine the possible impact of the variables on the study's findings. The purpose of this study is to find out whether Grade 12 academic performance is impacted by synchronous and asynchronous learning. Synchronous learning is conducted through face-to-face or online classes that allow real-time interaction and immediate feedback between students and teachers, while asynchronous learning allows students to study at their own pace by accessing academic resources such as pre-recorded lessons and course materials without real-time interaction.
-    Respondents: Our target respondents are 50 Grade 12 STEM students from Magalang Christian Ecumenical School Inc. (MCESI) during the school year 2026-2027. These students were selected through simple random sampling, in which all enrolled Grade 12 STEM students who have experienced both synchronous and asynchronous learning delivery modes are given an equal, non-zero chance of being selected, ensuring a representative sample for comparing academic metrics.
-    Research Method: The researchers will use a structured questionnaire and academic performance records (with permission) to gather data from Grade 12 students who have experienced both synchronous and asynchronous learning classes. After collecting the data, the researchers will use frequency, percentage, and mean to describe student performance. The data that will be gathered will also be compared to determine whether a significant difference exists between students' academic performance in synchronous and asynchronous learning classes using a Paired-Samples t-test.`
+                title: "Comparing STEM Students’ Performances in Synchronous and Asynchronous Classes",
+                dataDump: `Group # 4 Members: Gonzales, Samantha Nicole B., Manarang, Mikan M., Almario, Joyce P., Bondoc, Cassandra D., Casupanan, Rhian L., Dizon, Lynx Leonard G. Strand & Section: Grade 12 STEM (A) - COLOSSIANS. 
+
+Proposed Title: Comparing STEM Students’ Performances in Synchronous and Asynchronous Classes. 
+
+Introduction: The implementation of digital learning environments has led to the structural division of distance education into two major types of teaching, namely, synchronous and asynchronous instruction. First of all, asynchronous learning allows students to have flexibility since they are free to study and engage with academic materials according to their schedule (The Ohio State University, 2024). In turn, synchronous instruction is considered to be a structured real-time class environment enabling live communication between students and teachers, which leads to immediate mutual feedback (Tovuti LMS, 2025). However, the efficiency of these environments is not guaranteed because engagement of students within both synchronous and asynchronous frameworks is subject to change depending on individual factors, availability of technology, and overall instructions provided by the educator (Graglia, 2024). Speaking of the academic success and effectiveness of these two approaches from an objective point of view, it should be mentioned that research findings show the difference in terms of academic results. In particular, according to the results of the descriptive quantitative research carried out in the Philippines by Secreto and Tabo (2023), regular attendance at synchronous online meetings contributes to better academic performance and higher final grades as compared to students studying in fully asynchronous settings. Even though the supportive educational content in asynchronous modules, such as pre-recorded lessons and additional files, does not allow vulnerable students to fail, it cannot compare with the benefits of live classes. As far as the reasons for this difference are concerned, they usually relate to motivation and involvement of students in the process of studying. Mohammad et al. (2024) state that many students prefer live interactive schooling formats. This tendency has its reasons since one of the most typical systemic problems of other remote learning formats is disengagement, isolation, and cognitive distraction experienced by students during asynchronous learning process. Therefore, despite the temporal flexibility offered by asynchronous learning, there is a psychological price to pay for this type of education. 
+
+Motivation of the Researcher: The researchers chose the topic “Comparing STEM Students’ Performance in Synchronous and Asynchronous Classes” because they noticed the major differences in the nature of learning in different forms of instruction. With the increasing use of digital learning environments, synchronous and asynchronous classes have become important approaches that influence how students access lessons, manage their time, and engage with academic activities. The motivation behind this study came from the researchers’ observations that students may have different experiences and levels of performance depending on the learning setup they encounter. Even though synchronous classes allow for real-time interactions, immediate feedback, and direct communication with instructors, asynchronous classes are flexible and allow students to learn at their own pace. However, there may be differences in the ways these two learning environments influence students’ understanding, participation, productivity, and overall academic performance. In this study, the researchers intend to find out which of these two methods, whether synchronous or asynchronous learning, can help students perform better academically. The objective of this study is to gain further insights into how various modes of instruction affect the learning process and may help students, teachers, and academic institutions in developing better ways of providing efficient and accessible learning. 
+
+Research Gap: Recent educational research has extensively examined the operational models of distance education. However, most empirical studies have assessed remote learning approaches as a general, qualitative phenomenon of student experience or have focused on higher education institutions. There is a critical lack of comparative quantitative data concerning the difference in academic metrics between synchronous and asynchronous learning approaches within a localized Senior High School context – specifically, Grade 12 STEM students at Magalang Christian Ecumenical School Inc. The primary issue that warrants further investigation is the statistical difference in student performance metrics concerning the balance between flexibility and cognitive disengagement. According to literature, although asynchronous learning modules provide more flexible access to time, there is a systemic issue of social isolation and cognitive distraction which results in poor performance metrics. On the other hand, synchronous classes allow instant bidirectional feedback but require consistent technological availability. Previous research lacks quantitative, localized data proving whether the active advantages of synchronous digital communication have a statistically significant effect on final examination scores and quarterly marks compared to isolated, asynchronous self-paced learning. Thus, this quantitative study aims to resolve this issue by conducting a structured comparative analysis to establish clear empirical data on how these two distinct digital environments alter objective academic outcomes. 
+
+Statement of the Problem: This study aims to compare the academic performance of students exposed to synchronous and asynchronous remote learning modalities. Specifically, it seeks to answer the following questions: 1. What is the level of academic performance of students in synchronous learning classes as measured by their final examination scores and quarterly marks? 2. What is the level of academic performance of students in asynchronous learning classes as measured by their final examination scores and quarterly marks? 3. Is there a significant difference between the academic performance of students in synchronous learning classes and those in asynchronous learning classes? 
+
+Research Design: This study will employ a causal-comparative research design, which is a method of quantitative research. Costello (2023) states that this approach is used to find and examine the differences between current groups without controlling the factors in order to determine the possible impact of the variables on the study's findings. The purpose of this study is to find out whether Grade 12 academic performance is impacted by synchronous and asynchronous learning. Synchronous learning is conducted through face-to-face or online classes that allow real-time interaction and immediate feedback between students and teachers, while asynchronous learning allows students to study at their own pace by accessing academic resources such as pre-recorded lessons and course materials without real-time interaction. 
+
+Respondents: Our target respondents are 50 Grade 12 STEM students from Magalang Christian Ecumenical School Inc. (MCESI) during the school year 2026-2027. These students were selected through simple random sampling, in which all enrolled Grade 12 STEM students who have experienced both synchronous and asynchronous learning delivery modes are given an equal, non-zero chance of being selected, ensuring a representative sample for comparing academic metrics. 
+
+Research Method: The researchers will use academic performance records to gather data from Grade 12 students who have experienced both learning modalities. To determine whether a statistically significant difference exists between the students' academic performance in synchronous versus asynchronous learning, a paired samples t-test will be conducted. This test is appropriate as it allows for the comparison of performance metrics for the same set of respondents across the two different instructional environments.`
             }
         };
 
@@ -1165,6 +1219,9 @@
         let executionPointerIndex = -1;
         let currentDifficulty = 'medium';
         let currentComponent = 'all';
+
+        // Increase storage limit
+        const MAX_HISTORY_SIZE = 100;
 
         try {
             const preservedCollection = localStorage.getItem('mcesi_sim_history');
@@ -1215,8 +1272,8 @@
 
         async function triggerInterrogation(targetProposalNum) {
             // 1. Check if history limit reached
-            if (generatedCardsCollection.length >= 25) {
-                alert("Your lesson history is getting very full! Please Reset Levels to keep performance fast.");
+            if (generatedCardsCollection.length >= MAX_HISTORY_SIZE) {
+                alert(`Your lesson history is getting very full! Please Reset Levels to keep performance fast. Maximum ${MAX_HISTORY_SIZE} items allowed.`);
                 return;
             }
 
@@ -1229,13 +1286,13 @@
             let difficultyPrompt = "";
             switch (currentDifficulty) {
                 case 'easy':
-                    difficultyPrompt = "Create a basic question focusing on fundamental concepts.";
+                    difficultyPrompt = "Create a basic question focusing on fundamental concepts and data.";
                     break;
                 case 'medium':
-                    difficultyPrompt = "Create a moderate question that tests understanding of methodology and application.";
+                    difficultyPrompt = "Create a moderate question that tests understanding of methodology and application of research data.";
                     break;
                 case 'hard':
-                    difficultyPrompt = "Create a challenging question that requires critical analysis and evaluation.";
+                    difficultyPrompt = "Create a challenging question that requires critical analysis of research findings and data interpretation.";
                     break;
             }
 
@@ -1254,7 +1311,7 @@
                 }
             }
 
-            const instructionPrompt = `You are a tough panel defense judge for high school research. The student researchers have proposed a study titled "${scopeMetadata.title}". ${difficultyPrompt} ${componentPrompt} As a panelist, ask a specific question about their research. The student researchers will respond in first-person plural ('We chose...'). Provide the question and answer in JSON format: {"question": "...", "answer": "..."}`;
+            const instructionPrompt = `You are a tough panel defense judge for high school research. The student researchers have proposed a study titled "${scopeMetadata.title}". ${difficultyPrompt} ${componentPrompt} As a panelist, ask a specific question about their research data or findings. The student researchers will respond in third person plural ('The researchers chose...'). Provide the question and answer in JSON format: {"question": "...", "answer": "..."}`;
 
             try {
                 // 3. Send request to your own server-side bridge
@@ -1279,7 +1336,8 @@
                     question: structuredData.question,
                     answer: structuredData.answer,
                     difficulty: currentDifficulty,
-                    component: currentComponent
+                    component: currentComponent,
+                    timestamp: new Date().toISOString()
                 });
 
                 executionPointerIndex = generatedCardsCollection.length - 1;
@@ -1339,7 +1397,7 @@
             document.getElementById('historyList').innerHTML = '';
             document.getElementById('frontTag').innerText = "Select Lesson";
             document.getElementById('frontText').innerText = "Choose a proposal above. The panel will ask you a question about your research.";
-            document.getElementById('backText').innerText = "Your solid defense answer will appear here.";
+            document.getElementById('backText').innerText = "The researchers' defense answer will appear here.";
             document.getElementById('flashcard').classList.remove('flipped');
             closeModal();
             toggleSidebar(); // Close sidebar after reset
@@ -1354,7 +1412,7 @@
                 return;
             }
 
-            const photoBtn = document.querySelector('.btn-photo');
+            const photoBtn = document.querySelector('.btn-photo-action');
             const originalText = photoBtn.innerText;
             photoBtn.innerText = "📷";
 
@@ -1378,6 +1436,32 @@
             } finally {
                 photoBtn.innerText = originalText;
             }
+        }
+
+        function copyText(event, side) {
+            event.stopPropagation();
+            let textToCopy = "";
+
+            if (side === 'front') {
+                textToCopy = document.getElementById('frontText').innerText;
+            } else {
+                textToCopy = document.getElementById('backText').innerText;
+            }
+
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                // Show feedback on the copy button
+                const buttons = document.querySelectorAll('.btn-copy-action');
+                buttons.forEach(btn => {
+                    const originalText = btn.innerText;
+                    btn.innerText = "✓";
+                    setTimeout(() => {
+                        btn.innerText = originalText;
+                    }, 1000);
+                });
+            }).catch(err => {
+                console.error('Failed to copy text: ', err);
+                alert("Failed to copy text to clipboard.");
+            });
         }
     </script>
 </body>
