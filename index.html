@@ -442,25 +442,27 @@
             display: flex;
             justify-content: center;
             position: relative;
+            flex-shrink: 0;
+            /* Prevent shrinking */
         }
 
         .flashcard-wrapper {
             width: 100%;
             max-width: 600px;
             min-height: 350px;
-            /* Minimum height */
             perspective: 1200px;
             padding: 0 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            position: relative;
+            /* Changed from flex to relative */
+            margin: 0 auto;
+            /* Center it */
         }
 
         .flashcard {
             width: 100%;
             min-height: 350px;
-            /* Minimum height */
             position: relative;
+            /* Keep relative instead of absolute */
             transform-style: preserve-3d;
             transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
             cursor: pointer;
@@ -471,12 +473,21 @@
             transform: rotateY(180deg);
         }
 
+        .flashcard.flipped .card-front {
+            display: none;
+            /* Hide front when flipped */
+        }
+
+        .flashcard.flipped .card-back {
+            display: block;
+            /* Show back when flipped */
+        }
+
         .card-face {
-            position: absolute;
+            position: relative;
+            /* Changed from absolute to relative */
             width: 100%;
             min-height: 350px;
-            /* Minimum height */
-            backface-visibility: hidden;
             padding: 30px;
             display: flex;
             flex-direction: column;
@@ -484,13 +495,14 @@
             border-radius: 20px;
             overflow: hidden;
             transform-style: preserve-3d;
+            border: 2px solid var(--duo-gray);
+            border-bottom: 6px solid var(--duo-gray);
+            box-sizing: border-box;
         }
 
 
         .card-front {
             background-color: #ffffff;
-            border: 2px solid var(--duo-gray);
-            border-bottom: 6px solid var(--duo-gray);
         }
 
         .card-front .card-text {
@@ -502,9 +514,10 @@
 
         .card-back {
             background-color: #d7ffb8;
-            border: 2px solid var(--duo-green);
-            border-bottom: 6px solid var(--duo-green-shadow);
-            transform: rotateY(180deg);
+            border-color: var(--duo-green);
+            border-bottom-color: var(--duo-green-shadow);
+            display: none;
+            /* Hide by default */
         }
 
         .card-tag {
@@ -575,7 +588,8 @@
             position: absolute;
             background: rgba(255, 255, 255, 0.95);
             width: 100%;
-            height: 100%;
+            min-height: 100%;
+            /* Changed to min-height */
             top: 0;
             left: 0;
             display: flex;
@@ -632,6 +646,10 @@
             justify-content: center;
             width: 100%;
             max-width: 800px;
+            position: relative;
+            /* Ensure it stays in normal flow */
+            z-index: 1;
+            /* Keep above other elements */
         }
 
         .btn-proposal {
@@ -1045,24 +1063,36 @@
 
             <div class="flashcard-section">
                 <div class="flashcard-wrapper">
-                    <div class="flashcard" id="flashcard" onclick="performFlip()">
+                    <div class="flashcard" id="flashcard">
                         <div class="loader" id="loader">Generating Question...</div>
 
                         <div class="card-face card-front">
                             <div class="card-tag" id="frontTag">Select Lesson</div>
                             <div class="card-text" id="frontText">Choose a proposal above. The panel will ask you a
                                 question about your research.</div>
+                            <div class="card-hint">Click to check</div>
                             <button class="btn-photo" onclick="captureAndSavePhoto(event)">📷</button>
                         </div>
 
                         <div class="card-face card-back">
                             <div class="card-tag">Our Response</div>
                             <div class="card-text" id="backText">Your solid defense answer will appear here.</div>
+                            <div class="card-hint">Click to flip</div>
                             <button class="btn-photo" onclick="captureAndSavePhoto(event)">📷</button>
                         </div>
                     </div>
                 </div>
             </div>
+
+            <!-- Proposal selector stays outside the flashcard section -->
+            <div class="selectors-title">Select Research Proposal</div>
+            <div class="proposal-selector">
+                <button class="btn-proposal" onclick="triggerInterrogation(1)">Daily Jeepney Commuting</button>
+                <button class="btn-proposal" onclick="triggerInterrogation(2)">AI-Assisted Learning Tools</button>
+                <button class="btn-proposal" onclick="triggerInterrogation(3)">Synchronous vs Asynchronous
+                    Classes</button>
+            </div>
+
 
 
             <div class="selectors-title">Select Research Proposal</div>
@@ -1193,7 +1223,21 @@
 
         function performFlip() {
             if (executionPointerIndex !== -1) {
-                document.getElementById('flashcard').classList.toggle('flipped');
+                const flashcard = document.getElementById('flashcard');
+                const frontCard = flashcard.querySelector('.card-front');
+                const backCard = flashcard.querySelector('.card-back');
+
+                if (flashcard.classList.contains('flipped')) {
+                    // Flip back to front
+                    flashcard.classList.remove('flipped');
+                    frontCard.style.display = 'block';
+                    backCard.style.display = 'none';
+                } else {
+                    // Flip to back
+                    flashcard.classList.add('flipped');
+                    frontCard.style.display = 'none';
+                    backCard.style.display = 'block';
+                }
             }
         }
 
