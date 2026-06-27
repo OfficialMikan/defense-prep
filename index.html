@@ -2334,6 +2334,13 @@ Please provide a helpful, accurate response based on the research proposal.`;
                 document.body.classList.add('dark-mode');
                 document.getElementById('darkModeToggle').textContent = '☀️';
             }
+
+            const darkModeToggleBtn = document.getElementById('darkModeToggle');
+            // Ensure the button state matches the body class
+            const isDark = document.body.classList.contains('dark-mode');
+            if (darkModeToggleBtn) {
+                darkModeToggleBtn.textContent = isDark ? '☀️' : '🌙';
+            }
         });
 
         // Prevent horizontal scrolling
