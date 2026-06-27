@@ -52,7 +52,6 @@
             width: 100%;
         }
 
-        /* Apply dark mode background/text to full-page containers that use hardcoded colors */
         .main-content {
             background: #f7f7f7;
         }
@@ -203,7 +202,6 @@
             height: 50px;
         }
 
-        /* Ensure it stays fixed on scroll */
         .btn-toggle-sidebar {
             position: fixed !important;
         }
@@ -453,6 +451,39 @@
             letter-spacing: 1px;
         }
 
+        .group-members {
+            background: #e6f7ff;
+            border: 2px solid #1cb0f6;
+            border-radius: 16px;
+            padding: 15px;
+            margin: 15px 0;
+            width: 100%;
+            max-width: 800px;
+            text-align: center;
+        }
+
+        .group-members h3 {
+            color: #1cb0f6;
+            margin-bottom: 10px;
+        }
+
+        .members-list {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .member {
+            background: white;
+            border: 2px solid var(--duo-gray);
+            border-radius: 12px;
+            padding: 8px 15px;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
         .selectors-container {
             width: 100%;
             max-width: 800px;
@@ -675,14 +706,13 @@
         }
 
         .loader {
-            display: none;
             position: absolute;
             background: rgba(255, 255, 255, 0.95);
             width: 100%;
             height: 100%;
             top: 0;
             left: 0;
-            display: flex;
+            display: none;
             border-radius: 20px;
             align-items: center;
             justify-content: center;
@@ -890,7 +920,6 @@
             border-top: 2px solid var(--duo-gray);
             background: white;
             gap: 8px;
-            /* Add gap for better spacing */
         }
 
         .chatbot-input input {
@@ -901,7 +930,6 @@
             font-family: var(--font);
             font-size: 1rem;
             min-width: 0;
-            /* Allow input to shrink */
         }
 
         .chatbot-input button {
@@ -910,15 +938,12 @@
             border: none;
             border-bottom: 4px solid var(--duo-teal-shadow);
             padding: 12px 15px;
-            /* Reduced padding */
             border-radius: 16px;
             cursor: pointer;
             font-weight: 800;
             transition: all 0.1s ease;
             min-width: 60px;
-            /* Fixed minimum width */
             white-space: nowrap;
-            /* Prevent text wrapping */
         }
 
         .chatbot-input button:active {
@@ -1168,7 +1193,6 @@
             --duo-gray-shadow: #2a2a2a;
         }
 
-        /* Ensure all interactive elements have dark mode styles */
         :root.dark-mode .btn-difficulty,
         :root.dark-mode .component-dropdown,
         :root.dark-mode .btn-proposal {
@@ -1176,7 +1200,6 @@
             color: #ffffff;
             border-color: #404040;
         }
-
 
         /* Mobile Improvements */
         @media (max-width: 768px) {
@@ -1270,26 +1293,31 @@
                 max-width: 90px;
             }
 
+            .members-list {
+                gap: 5px;
+            }
+
+            .member {
+                font-size: 0.75rem;
+                padding: 6px 10px;
+            }
+
             .chatbot-popup {
                 width: calc(100vw - 40px);
-                /* Full width minus margins */
                 max-width: 350px;
                 left: 50%;
                 right: auto;
                 transform: translateX(-50%);
-                /* Center horizontally */
                 bottom: 90px;
             }
 
             .chatbot-input {
                 flex-direction: row;
-                /* Keep horizontal even on small screens */
                 gap: 5px;
             }
 
             .chatbot-input button {
                 padding: 10px 12px;
-                /* Even smaller for mobile */
                 min-width: 50px;
                 font-size: 0.9rem;
             }
@@ -1297,6 +1325,33 @@
             .chatbot-input input {
                 padding: 10px;
                 font-size: 0.9rem;
+            }
+
+            /* Fix for mobile containers */
+            .container,
+            .main-content,
+            .selectors-container,
+            .flashcard-section,
+            .proposal-selector {
+                overflow-x: hidden;
+                width: 100vw;
+                max-width: 100vw;
+                padding-left: 10px;
+                padding-right: 10px;
+            }
+
+            .meta-header {
+                padding-left: 10px;
+                padding-right: 10px;
+                width: 100vw;
+                max-width: 100vw;
+            }
+
+            .group-members {
+                width: calc(100vw - 20px);
+                max-width: calc(100vw - 20px);
+                margin-left: 10px;
+                margin-right: 10px;
             }
         }
 
@@ -1373,7 +1428,6 @@
 
             .chatbot-input {
                 flex-direction: row;
-                /* Keep horizontal */
                 gap: 5px;
             }
 
@@ -1402,40 +1456,15 @@
                 max-width: 100%;
             }
 
-            /* Ensure all elements respect the viewport width */
             * {
                 max-width: 100%;
                 box-sizing: border-box;
-            }
-
-            /* Fix for mobile containers */
-            @media (max-width: 768px) {
-
-                .container,
-                .main-content,
-                .selectors-container,
-                .flashcard-section,
-                .proposal-selector {
-                    overflow-x: hidden;
-                    width: 100vw;
-                    max-width: 100vw;
-                    padding-left: 10px;
-                    padding-right: 10px;
-                }
-
-                .meta-header {
-                    padding-left: 10px;
-                    padding-right: 10px;
-                    width: 100vw;
-                    max-width: 100vw;
-                }
             }
 
             .logo-text {
                 position: fixed;
                 top: 10px;
                 left: 70px;
-                /* Positioned next to hamburger */
                 font-weight: 800;
                 font-size: 1.2rem;
                 color: var(--duo-blue);
@@ -1446,7 +1475,7 @@
                 backdrop-filter: blur(5px);
             }
 
-            .dark-mode .logo-text {
+            :root.dark-mode .logo-text {
                 background: rgba(42, 42, 42, 0.9);
                 color: white;
             }
@@ -1483,7 +1512,7 @@
     <!-- Glossary Modal -->
     <div id="glossary-modal">
         <div class="glossary-content">
-            <button class="btn-close-glossary" onclick="closeGlossary()">×</button>
+            <button class="btn-close-glossary" onclick="closeGlossary()">Ã—</button>
             <h2>Research Glossary</h2>
             <div class="glossary-term">
                 <h3>Quantitative Research</h3>
@@ -1521,18 +1550,17 @@
         </div>
     </div>
 
-    <!-- Chatbot Button -->
     <!-- Dark Mode Toggle -->
-    <button class="dark-mode-toggle" id="darkModeToggle" onclick="toggleDarkMode()">🌙</button>
+    <button class="dark-mode-toggle" id="darkModeToggle" onclick="toggleDarkMode()">ðŸŒ™</button>
 
     <!-- Chatbot Button -->
-    <button class="chatbot-btn" onclick="toggleChatbot()">💬</button>
+    <button class="chatbot-btn" onclick="toggleChatbot()">ðŸ’¬</button>
 
     <!-- Chatbot Popup -->
     <div class="chatbot-popup" id="chatbotPopup">
         <div class="chatbot-header">
             <span>Research Assistant</span>
-            <button class="chatbot-close" onclick="toggleChatbot()">×</button>
+            <button class="chatbot-close" onclick="toggleChatbot()">Ã—</button>
         </div>
         <div class="chatbot-messages" id="chatbotMessages">
             <div class="message bot-message">
@@ -1552,7 +1580,7 @@
 
         <!-- Pop-out Sidebar -->
         <div class="sidebar" id="main-sidebar">
-            <button class="btn-close-sidebar" onclick="toggleSidebar()">✖</button>
+            <button class="btn-close-sidebar" onclick="toggleSidebar()">âœ–</button>
             <h2>Practice History</h2>
             <div class="filter-buttons">
                 <button class="filter-btn active" onclick="filterHistory('all')">All</button>
@@ -1567,11 +1595,23 @@
 
         <div class="main-content">
             <!-- Sidebar Toggle Button -->
-            <button class="btn-toggle-sidebar" onclick="toggleSidebar()">☰</button>
+            <button class="btn-toggle-sidebar" onclick="toggleSidebar()">â˜°</button>
 
             <div class="meta-header">
                 <h1>Group 4 Training</h1>
                 <p>Panel Defense Simulator</p>
+            </div>
+
+            <div class="group-members">
+                <h3>Group Members</h3>
+                <div class="members-list">
+                    <div class="member">Gonzales, Samantha Nicole B.</div>
+                    <div class="member">Manarang, Mikan M.</div>
+                    <div class="member">Almario, Joyce P.</div>
+                    <div class="member">Bondoc, Cassandra D.</div>
+                    <div class="member">Casupanan, Rhian L.</div>
+                    <div class="member">Dizon, Lynx Leonard G.</div>
+                </div>
             </div>
 
             <div class="selectors-container">
@@ -1610,11 +1650,11 @@
                             <div class="card-hint">Click to check</div>
                             <div class="btn-actions">
                                 <button class="btn-action btn-photo-action"
-                                    onclick="captureAndSavePhoto(event)">📷</button>
+                                    onclick="captureAndSavePhoto(event)">ðŸ“·</button>
                                 <button class="btn-action btn-copy-action"
-                                    onclick="copyText(event, 'front')">📋</button>
+                                    onclick="copyText(event, 'front')">ðŸ“‹</button>
                                 <button class="btn-action btn-favorite-action"
-                                    onclick="toggleFavoriteCurrent(event)">★</button>
+                                    onclick="toggleFavoriteCurrent(event)">â˜…</button>
                             </div>
                         </div>
 
@@ -1624,10 +1664,10 @@
                             <div class="card-hint">Click to flip</div>
                             <div class="btn-actions">
                                 <button class="btn-action btn-photo-action"
-                                    onclick="captureAndSavePhoto(event)">📷</button>
-                                <button class="btn-action btn-copy-action" onclick="copyText(event, 'back')">📋</button>
+                                    onclick="captureAndSavePhoto(event)">ðŸ“·</button>
+                                <button class="btn-action btn-copy-action" onclick="copyText(event, 'back')">ðŸ“‹</button>
                                 <button class="btn-action btn-favorite-action"
-                                    onclick="toggleFavoriteCurrent(event)">★</button>
+                                    onclick="toggleFavoriteCurrent(event)">â˜…</button>
                             </div>
                         </div>
                     </div>
@@ -1675,7 +1715,7 @@
         const studyRepositoryContext = {
             "1": {
                 "title": "The Relationship Between AI-Assisted Learning Tools and the Academic Performance of Students",
-                "dataDump": ""
+                "dataDump": "Group # 4\nGroup Members\nGONZALES, SAMANTHA NICOLE B.\nMANARANG, MIKAN M.\nALMARIO, JOYCE P.\nBONDOC, CASSANDRA D.\nCASUPANAN, RHIAN ARYANA L.\nDIZON, LYNX LEONARD G.\nStrand & Section\nGrade 12 STEM (A) - COLOSSIANS\nProposed Title\nThe Relationship Between AI-Assisted Learning Tools and the Academic Performance of Students\nIntroduction\n      There exists a paradigm shift occurring in the educational setting due to the rapid evolution of innovative data processing technologies. The application of Artificial Intelligence (AI) as a tool that helps students perform their schoolwork and individual study sessions can be considered a groundbreaking innovation in modern educational approaches (Flores & Manocan, 2024). Such an approach becomes particularly relevant for Philippine schools where Grade 12 students encounter the essential year of senior high school filled with academic workloads and sophisticated core subjects. The issue under investigation is relevant since AI platforms have stopped being a novelty; instead, they have become part of classroom reality. Although these tools are widely recognized as learning resources that may support educational tasks, student engagement, and personalized learning experiences, the rapid and widespread adoption of AI technology has raised questions regarding its relationship with student learning and academic performance (Maamor et al., 2024).\n       In terms of the quantitative approach, the current study aims to examine the relationship between two operational variables, namely the use of AI-assisted learning tools (platform types, frequency of access, and specific applications in the learning process) and the level of student academic performance (student grades and assignment quality metrics). Nowadays, a vast number of secondary school students rely on algorithmic platforms such as ChatGPT and Grammarly when conducting research, gathering study materials, writing essays, and understanding complex topics in the curriculum (Hafeez, 2026). At the same time, the increasing use of advanced technological tools has generated discussions regarding their association with students' cognitive and academic development. While automated platforms provide immediate access to information and learning support, concerns remain regarding how their usage relates to students' independent thinking and problem-solving skills (Aviso et al., 2026).\n       As seen from the discussion above, there remains a gap in understanding how the use of AI-assisted learning tools is associated with students' academic performance and cognitive development. This issue has been widely discussed in contemporary educational studies. According to empirical research, although many students perceive AI technologies as beneficial because of their convenience and support for learning activities, concerns continue to exist regarding academic honesty, critical thinking, and dependence on technology (Vieriu & Petrea, 2025). Thus, the current quantitative investigation is highly important for the local academic community as it seeks to gather concrete information regarding the ways in which Grade 12 learners use AI platforms and how such usage is related to their academic performance. The findings may provide researchers and school administrators with an empirical basis for developing balanced academic frameworks and digital guidelines.\nMotivation of the Researcher\n      The selected topic, \"The Relationship Between AI-Assisted Learning Tools and Students' Academic Performance,\" was chosen because the researchers recognized the growing influence of artificial intelligence in the field of education. Due to technological advancements, many students have begun using AI-assisted learning tools as supplementary resources to understand lessons, develop study skills, and support their academic tasks. However, the relationship between the use of these tools and students' academic performance remains a relevant issue that requires further investigation.\n       The motivation behind this study came from the researchers' observations of the increasing use of AI-assisted learning tools among learners for academic purposes. Although AI tools provide convenience, accessibility, and assistance in completing academic tasks, questions remain regarding how their usage relates to learners' knowledge, critical thinking, and overall academic performance. This became an area of interest for the researchers, particularly among Grade 12 students who face higher academic demands and must prepare for future educational and career opportunities.\nThrough this study, the researchers aim to determine the relationship between the use of AI-assisted learning tools and the academic performance of Grade 12 students. This research seeks to provide a better understanding of how the utilization of AI technology is associated with students' learning experiences and academic performance. The findings of this study may help students, teachers, and educational institutions better understand the role of AI in learning and promote informed and responsible integration of technology in education. \nResearch Gap\n       Despite the fact that current educational literature provides a detailed analysis of the usefulness and learning efficiency of the use of automated software, the existing empirical studies mainly assess the role and influence of AI implementation in higher education or certain technical spheres. The lack of empirical information about Grade 12 Senior High School students studying their final year at a private suburban school such as Magalang Christian Ecumenical School Inc. is a key deficiency in educational literature. \nThis deficiency appears in the lack of local statistical analysis of how the uncontrolled use of tools such as ChatGPT and Grammarly creates a distinct cognitive trade-off and can be used as a kind of shortcut which will limit the development of critical thinking skills. The second important issue is the lack of local statistical information on the correlation between particular operational variables, including the frequency of the usage of AI and specific types of platform applications, with objective academic measures, such as student grades and assignment quality. \nStatement of the Problem\n       This study aims to examine the relationship between the utilization of Artificial Intelligence (AI)-assisted learning tools and the academic performance of Grade 12 students. Specifically, it seeks to answer the following questions:\n1.) What is the extent of students' utilization of AI-assisted learning tools in terms of:\n\n* Frequency of access (e.g., daily, weekly)\n\n* Platform types utilized (e.g., generative chatbots, automated editors)\n\n* Specific learning applications (e.g., primary research, essay writing, task execution)?\n\n2.) What is the level of academic performance of the Grade 12 students as measured by their:\n\n* First-semester general averages\n\n* Specialized core subject quarterly grades from last academic year?\n\n3.) Is there a significant relationship of AI-assisted learning tool utilization on the academic performance of Grade 12 students?\nResearch Design\n       This study will employ a quantitative research approach, specifically a non-experimental correlational research design, to examine the relationship between the use of AI-assisted learning tools among Grade 12 students and their academic performance. This design is appropriate for the study as it enables the researchers to determine whether a significant association exists between the frequency of AI tool utilization and academic metrics without manipulating the variables. \nRespondents\n       Our target respondents are 50 Grade 12 students from Magalang Christian Ecumenical School Inc. (MCESI) during the school year 2026-2027. These students were selected through simple random sampling, which means that all Grade 12 students have an equal chance of being chosen to participate in this study.\nResearch Method\n       The researchers will use a structured questionnaire to collect data on the use of AI-assisted learning tools among Grade 12 students. After obtaining the necessary permissions, questionnaires will be distributed to selected respondents through simple random sampling. The collected data will be analyzed using frequency, percentage, mean, and correlation analysis. \nREFERENCES\n\nAviso, K. B., et al. (2026). Evaluating the dual impacts of artificial intelligence tools on secondary student critical thinking (Academic Research Report). Studocu Repository. https://www.studocu.com/ph/u/155746612\n\nFlores, M. J., & Manocan, R. L. (2024). AI tools: Its effect to the academic performance of Grade 12 students of Solido National High School (Unpublished Manuscript). Scribd Document Repository. https://www.scribd.com/document/757485684/AI-Tools-Its-Effect-to-the-Academic-Performance-of-Grdae-12-Students-of-Solido-National-High-School-final\n\nHafeez, M. (2026). The impact of artificial intelligence tools on academic performance and learning efficiency among university students. Academia.edu. https://www.academia.edu/164866409/The_Impact_of_Artificial_Intelligence_Tools_on_Academic_Performance_and_Learning_Efficiency_Among_University_Students\n\nMaamor, N., et al. (2024). The effect of artificial intelligence (AI) on students' learning. International Journal of Advanced Research in Education, 6(3), 112-125. https://www.researchgate.net/publication/385329890_The_Effect_of_Artificial_Intelligence_AI_on_Students'_Learning\n\nVieriu, G., & Petrea, S. M. (2025). The impact of artificial intelligence (AI) on students' academic development: Perceptions, benefits, and structural challenges. Education Sciences, 15(3), Article 343. https://doi.org/10.3390/educsci15030343"
             }
         };
 
@@ -1736,13 +1776,6 @@
 
             // Explicitly hide the loader on page load to ensure it's not stuck
             document.getElementById('loader').style.display = 'none';
-
-            // Load dark mode preference
-            const savedDarkMode = localStorage.getItem('darkMode');
-            if (savedDarkMode === 'true') {
-                document.documentElement.classList.add('dark-mode');
-                document.getElementById('darkModeToggle').textContent = '☀️';
-            }
         });
 
         function loadChatHistory() {
@@ -1850,7 +1883,8 @@ ${difficultyPrompt} ${componentPrompt} As a panelist, ask a short, direct, and s
                 });
 
                 if (!response.ok) {
-                    throw new Error(`Server error: ${response.status} - ${response.statusText}`);
+                    const errorData = await response.json();
+                    throw new Error(`Server error: ${errorData.error || 'Unknown error'}`);
                 }
 
 
@@ -1913,9 +1947,10 @@ ${difficultyPrompt} ${componentPrompt} As a panelist, ask a short, direct, and s
                 document.getElementById('frontText').innerText = cardContext.question;
                 document.getElementById('backText').innerText = cardContext.answer;
 
-                // Update history item active state
-                document.querySelectorAll('.history-item').forEach((element, DOMIdx) => {
-                    element.classList.toggle('active', DOMIdx === executionPointerIndex);
+                // Update history item active state using dataset.originalIndex
+                document.querySelectorAll('.history-item').forEach((element) => {
+                    const idx = parseInt(element.dataset.originalIndex);
+                    element.classList.toggle('active', idx === executionPointerIndex);
                 });
 
                 // Update favorite button state
@@ -1964,11 +1999,12 @@ ${difficultyPrompt} ${componentPrompt} As a panelist, ask a short, direct, and s
 
                 const executionListItem = document.createElement('li');
                 executionListItem.className = `history-item ${isActive ? 'active' : ''}`;
+                executionListItem.dataset.originalIndex = originalIndex;
 
                 executionListItem.innerHTML = `
                     <span>Q${visibleIndex + 1}: ${cardInstance.label} (${cardInstance.difficulty})</span>
-                    <button class="delete-btn" onclick="deleteHistoryItem(event, ${originalIndex})">🗑️</button>
-                    <button class="favorite-btn ${cardInstance.favorite ? 'favorited' : ''}" onclick="toggleFavorite(event, ${originalIndex})">★</button>
+                    <button class="delete-btn" onclick="deleteHistoryItem(event, ${originalIndex})">ðŸ—‘ï¸</button>
+                    <button class="favorite-btn ${cardInstance.favorite ? 'favorited' : ''}" onclick="toggleFavorite(event, ${originalIndex})">â˜…</button>
                 `;
 
                 executionListItem.onclick = (clickEvent) => {
@@ -1995,7 +2031,7 @@ ${difficultyPrompt} ${componentPrompt} As a panelist, ask a short, direct, and s
             const card = generatedCardsCollection[executionPointerIndex];
             const favoriteButtons = document.querySelectorAll('.btn-favorite-action');
             favoriteButtons.forEach(btn => {
-                btn.textContent = card.favorite ? '★' : '☆';
+                btn.textContent = card.favorite ? 'â˜…' : 'â˜†';
                 btn.style.color = card.favorite ? '#ffc800' : 'white';
             });
         }
@@ -2024,6 +2060,8 @@ ${difficultyPrompt} ${componentPrompt} As a panelist, ask a short, direct, and s
                 generatedCardsCollection.splice(index, 1);
                 if (executionPointerIndex >= generatedCardsCollection.length) {
                     executionPointerIndex = generatedCardsCollection.length - 1;
+                } else if (index < executionPointerIndex) {
+                    executionPointerIndex--;
                 }
                 localStorage.setItem('mcesi_sim_history', JSON.stringify(generatedCardsCollection));
                 renderHistoryPanelUI();
@@ -2157,7 +2195,7 @@ ${difficultyPrompt} ${componentPrompt} As a panelist, ask a short, direct, and s
 
             const photoBtn = document.querySelector('.btn-photo-action');
             const originalText = photoBtn.innerText;
-            photoBtn.innerText = "📷";
+            photoBtn.innerText = "ðŸ“·";
 
             const currentCard = generatedCardsCollection[executionPointerIndex];
 
@@ -2206,7 +2244,7 @@ ${difficultyPrompt} ${componentPrompt} As a panelist, ask a short, direct, and s
                 const buttons = document.querySelectorAll('.btn-copy-action');
                 buttons.forEach(btn => {
                     const originalText = btn.innerText;
-                    btn.innerText = "✓";
+                    btn.innerText = "âœ“";
                     setTimeout(() => {
                         btn.innerText = originalText;
                     }, 1000);
@@ -2311,13 +2349,24 @@ Please provide a helpful, accurate response based on the research proposal.`;
             // Update button icon
             const darkModeToggle = document.getElementById('darkModeToggle');
             if (darkModeToggle) {
-                darkModeToggle.textContent = isDarkMode ? '☀️' : '🌙';
+                darkModeToggle.textContent = isDarkMode ? 'â˜€ï¸' : 'ðŸŒ™';
             }
 
             // Persist preference
             localStorage.setItem('darkMode', String(isDarkMode));
         }
 
+        // Load dark mode preference on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedDarkMode = localStorage.getItem('darkMode');
+            if (savedDarkMode === 'true') {
+                document.documentElement.classList.add('dark-mode');
+                const darkModeToggleBtn = document.getElementById('darkModeToggle');
+                if (darkModeToggleBtn) {
+                    darkModeToggleBtn.textContent = 'â˜€ï¸';
+                }
+            }
+        });
 
         // Prevent horizontal scrolling
         document.body.style.overflowX = 'hidden';
@@ -2332,3 +2381,4 @@ Please provide a helpful, accurate response based on the research proposal.`;
 </body>
 
 </html>
+
