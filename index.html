@@ -52,6 +52,55 @@
             width: 100%;
         }
 
+        /* Apply dark mode background/text to full-page containers that use hardcoded colors */
+        .main-content {
+            background: #f7f7f7;
+        }
+
+        :root.dark-mode .main-content {
+            background: var(--bg-main);
+        }
+
+        :root.dark-mode .group-members {
+            background: #1e2b1c;
+            border-color: #58cc02;
+        }
+
+        :root.dark-mode #modal-overlay {
+            background: rgba(0, 0, 0, 0.65);
+        }
+
+        :root.dark-mode #intro-loader {
+            background: var(--bg-main);
+        }
+
+        :root.dark-mode .card-front {
+            background-color: #1f1f1f;
+            color: var(--text-dark);
+            border-color: var(--duo-gray);
+        }
+
+        :root.dark-mode .card-front .card-text {
+            color: var(--text-dark);
+        }
+
+        :root.dark-mode .card-back {
+            background-color: #1e1e1e;
+        }
+
+        :root.dark-mode .bot-message {
+            background: #2a2a2a;
+        }
+
+        :root.dark-mode .chatbot-popup {
+            background: #1f1f1f;
+            border-color: var(--duo-gray);
+        }
+
+        :root.dark-mode .chatbot-input {
+            background: #1f1f1f;
+        }
+
         /* --- Custom Intro Loading Screen --- */
         #intro-loader {
             position: fixed;

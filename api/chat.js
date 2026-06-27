@@ -46,9 +46,8 @@ export default async function handler(req, res) {
                     },
                     { role: "user", content: jsonPrompt }
                 ],
-                temperature: 0.1,
+                temperature: 0,
                 max_tokens: 1000
-                // Removed response_format to avoid the JSON keyword requirement
             })
         });
 
