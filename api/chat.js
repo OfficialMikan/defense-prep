@@ -16,7 +16,7 @@ export default async function handler(req, res) {
             });
         }
 
-        console.log("Making request to Groq API");
+        console.log("Making request to Groq API with model: llama-3.3-70b-versatile");
 
         const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
             method: "POST",
@@ -26,15 +26,28 @@ export default async function handler(req, res) {
             },
             body: JSON.stringify({
                 model: "llama-3.3-70b-versatile",
-                messages: [{ role: "user", content: prompt }],
-                temperature: 0.1,
-                max_tokens: 1000
+                messages: [
+                    {
+                        role: "system",
+                        content: `You are a research panel defense expert with these strict rules:
+                        1. ONLY use information from the provided research proposal
+                        2. NEVER make up information not in the proposal
+                        3. If asked about something not in the proposal, say "The researchers did not provide information about [topic] in their proposal."
+                        4. Always respond in third person plural ("The researchers...")
+                        5. Focus only on the specific research proposal provided
+                        6. Extract information directly from the proposal text
+                        7. Do not use general knowledge about research or education`
+                    },
+                    { role: "user", content: prompt }
+                ],
+                temperature: 0.1, // Lower temperature for more deterministic responses
+                max_tokens: 1000,
+                response_format: { type: "json_object" }
             })
         });
 
         console.log("Groq API response status:", response.status);
 
-        // Check if response is ok
         if (!response.ok) {
             const errorText = await response.text();
             console.error("Groq API Error:", response.status, errorText);

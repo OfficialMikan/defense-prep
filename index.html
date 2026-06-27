@@ -1446,7 +1446,20 @@
                 }
             }
 
-            const instructionPrompt = `You are a tough panel defense judge for high school research. The student researchers have proposed a study titled "${scopeMetadata.title}". ${difficultyPrompt} ${componentPrompt} As a panelist, ask a short, direct, and a specific question about their research based ONLY on the provided information and use simple vocabulary. The student researchers will respond in third person plural ('The researchers...') using ONLY information from their proposal. Provide the question and answer in JSON format: {"question": "...", "answer": "..."}`;
+            const instructionPrompt = `You are a strict, highly critical Senior High School research panel defense judge. Your sole source of absolute truth is the research proposal provided below.
+
+CRITICAL EXECUTION PROTOCOLS:
+1. TRUST THE DATA: When evaluating a question, you must read all sections of the matching proposal. 
+2. EXTRACTION OVER GUESSING: If the information is present or clearly implied by their methodology/sampling, extract it. Do NOT guess outside information.
+3. NO LAZY REFUSALS: You are prohibited from responding with "This information is not explicitly detailed" if the answer can be synthesized from the text (e.g., matching the sampling criteria to their target respondents).
+4. RESPONDENT RULES: Frame the answer in the third person plural ('The researchers...').
+5. CONTEXTUAL LIMITATION: ONLY use information from the provided research proposal. DO NOT use general knowledge about research or education.
+
+RESEARCH PROPOSAL:
+${scopeMetadata.dataDump}
+
+${difficultyPrompt} ${componentPrompt} As a panelist, ask a short, direct, and specific question about their research based ONLY on the provided information. The student researchers will respond in third person plural ('The researchers...') using ONLY information from their proposal. Provide the question and answer in JSON format: {"question": "...", "answer": "..."}`;
+
 
             try {
                 // 3. Send request to your own server-side bridge
