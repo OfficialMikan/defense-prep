@@ -1447,7 +1447,6 @@
 
     <div id="intro-loader">
         <div class="anim-number">GROUP 4</div>
-        <div class="logo-text">GROUP 4</div>
         <div class="intro-title">Panel Defense Simulator</div>
         <div class="intro-subtitle">Created by Mikan M. Manarang</div>
     </div>
@@ -2321,10 +2320,15 @@ Please provide a helpful, accurate response based on the research proposal.`;
 
             // Update button icon
             const darkModeToggle = document.getElementById('darkModeToggle');
-            darkModeToggle.textContent = isDarkMode ? '☀️' : '🌙';
+            if (darkModeToggle) {
+                darkModeToggle.textContent = isDarkMode ? '☀️' : '🌙';
+            }
 
-            // Save preference to localStorage
-            localStorage.setItem('darkMode', isDarkMode);
+            // Persist preference
+            localStorage.setItem('darkMode', String(isDarkMode));
+
+            // Also ensure CSS variables apply even if any other styles override
+            document.documentElement.style.setProperty('--bg-main', isDarkMode ? '#1a1a1a' : '#ffffff');
         }
 
         // Load dark mode preference on page load
