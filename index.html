@@ -131,7 +131,6 @@
 
         .btn-toggle-sidebar {
             position: fixed;
-            /* Changed from absolute to fixed */
             top: 10px;
             left: 10px;
             background: #ffffff;
@@ -153,6 +152,11 @@
             justify-content: center;
             width: 50px;
             height: 50px;
+        }
+
+        /* Ensure it stays fixed on scroll */
+        .btn-toggle-sidebar {
+            position: fixed !important;
         }
 
         .filter-buttons {
@@ -869,6 +873,8 @@
             padding: 10px;
             border-top: 2px solid var(--duo-gray);
             background: white;
+            gap: 8px;
+            /* Add gap for better spacing */
         }
 
         .chatbot-input input {
@@ -878,6 +884,8 @@
             border-radius: 16px;
             font-family: var(--font);
             font-size: 1rem;
+            min-width: 0;
+            /* Allow input to shrink */
         }
 
         .chatbot-input button {
@@ -885,13 +893,16 @@
             color: white;
             border: none;
             border-bottom: 4px solid var(--duo-teal-shadow);
-            padding: 12px 20px;
+            padding: 12px 15px;
+            /* Reduced padding */
             border-radius: 16px;
-            margin-left: 10px;
             cursor: pointer;
             font-weight: 800;
             transition: all 0.1s ease;
-            min-width: 80px;
+            min-width: 60px;
+            /* Fixed minimum width */
+            white-space: nowrap;
+            /* Prevent text wrapping */
         }
 
         .chatbot-input button:active {
@@ -1101,6 +1112,47 @@
             background: var(--duo-gray-shadow);
         }
 
+        .dark-mode-toggle {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #ffffff;
+            color: var(--duo-blue);
+            border: 2px solid var(--duo-gray);
+            border-bottom: 4px solid var(--duo-gray);
+            padding: 10px 15px;
+            border-radius: 16px;
+            font-family: var(--font);
+            font-weight: 800;
+            font-size: 1.5rem;
+            cursor: pointer;
+            z-index: 900;
+            transition: all 0.1s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 50px;
+            height: 50px;
+        }
+
+        .dark-mode-toggle:active {
+            border-bottom-width: 2px;
+            transform: translateY(2px);
+        }
+
+        /* Dark Mode Styles */
+        :root.dark-mode {
+            --bg-main: #1a1a1a;
+            --sidebar-bg: #2d2d2d;
+            --text-dark: #ffffff;
+            --text-muted: #afafaf;
+            --duo-gray: #404040;
+            --duo-gray-shadow: #2a2a2a;
+        }
+
+
         /* Mobile Improvements */
         @media (max-width: 768px) {
             .meta-header h1 {
@@ -1203,16 +1255,27 @@
             }
 
             .chatbot-popup {
-                width: 300px;
-                height: 400px;
+                width: calc(100vw - 40px);
+                /* Full width minus margins */
+                max-width: 350px;
+                left: 50%;
+                right: auto;
+                transform: translateX(-50%);
+                /* Center horizontally */
                 bottom: 90px;
-                right: 15px;
+            }
+
+            .chatbot-input {
+                flex-direction: row;
+                /* Keep horizontal even on small screens */
+                gap: 5px;
             }
 
             .chatbot-input button {
-                padding: 10px 15px;
+                padding: 10px 12px;
+                /* Even smaller for mobile */
+                min-width: 50px;
                 font-size: 0.9rem;
-                min-width: 70px;
             }
 
             .chatbot-input input {
@@ -1286,18 +1349,95 @@
             }
 
             .chatbot-popup {
-                width: 280px;
-                height: 350px;
+                width: calc(100vw - 30px);
+                max-width: 280px;
             }
 
             .chatbot-input {
-                flex-direction: column;
-                gap: 10px;
+                flex-direction: row;
+                /* Keep horizontal */
+                gap: 5px;
             }
 
             .chatbot-input button {
+                padding: 8px 10px;
+                min-width: 45px;
+                font-size: 0.8rem;
+            }
+
+            body {
+                overflow-x: hidden;
+                position: relative;
+                width: 100vw;
+                max-width: 100vw;
+            }
+
+            .container {
+                overflow-x: hidden;
+                width: 100vw;
+                max-width: 100vw;
+            }
+
+            .main-content {
+                overflow-x: hidden;
                 width: 100%;
-                margin-left: 0;
+                max-width: 100%;
+            }
+
+            /* Ensure all elements respect the viewport width */
+            * {
+                max-width: 100%;
+                box-sizing: border-box;
+            }
+
+            /* Fix for mobile containers */
+            @media (max-width: 768px) {
+
+                .container,
+                .main-content,
+                .selectors-container,
+                .flashcard-section,
+                .proposal-selector {
+                    overflow-x: hidden;
+                    width: 100vw;
+                    max-width: 100vw;
+                    padding-left: 10px;
+                    padding-right: 10px;
+                }
+
+                .meta-header {
+                    padding-left: 10px;
+                    padding-right: 10px;
+                    width: 100vw;
+                    max-width: 100vw;
+                }
+
+                .group-members {
+                    width: calc(100vw - 20px);
+                    max-width: calc(100vw - 20px);
+                    margin-left: 10px;
+                    margin-right: 10px;
+                }
+            }
+
+            .logo-text {
+                position: fixed;
+                top: 10px;
+                left: 70px;
+                /* Positioned next to hamburger */
+                font-weight: 800;
+                font-size: 1.2rem;
+                color: var(--duo-blue);
+                z-index: 899;
+                background: rgba(255, 255, 255, 0.9);
+                padding: 8px 12px;
+                border-radius: 12px;
+                backdrop-filter: blur(5px);
+            }
+
+            .dark-mode .logo-text {
+                background: rgba(42, 42, 42, 0.9);
+                color: white;
             }
         }
     </style>
@@ -1307,6 +1447,7 @@
 
     <div id="intro-loader">
         <div class="anim-number">GROUP 4</div>
+        <div class="logo-text">GROUP 4</div>
         <div class="intro-title">Panel Defense Simulator</div>
         <div class="intro-subtitle">Created by Mikan M. Manarang</div>
     </div>
@@ -1369,6 +1510,10 @@
             </div>
         </div>
     </div>
+
+    <!-- Chatbot Button -->
+    <!-- Dark Mode Toggle -->
+    <button class="dark-mode-toggle" id="darkModeToggle" onclick="toggleDarkMode()">🌙</button>
 
     <!-- Chatbot Button -->
     <button class="chatbot-btn" onclick="toggleChatbot()">💬</button>
@@ -1787,31 +1932,7 @@ ${difficultyPrompt} ${componentPrompt} As a panelist, ask a short, direct, and s
             }, 150);
         }
 
-        function renderHistoryPanelUI() {
-            const trackingListContainer = document.getElementById('historyList');
-            trackingListContainer.innerHTML = '';
-            generatedCardsCollection.forEach((cardInstance, indexKey) => {
-                const executionListItem = document.createElement('li');
-                executionListItem.className = `history-item ${indexKey === executionPointerIndex ? 'active' : ''}`;
-                executionListItem.innerHTML = `
-                    <span>Q${indexKey + 1}: ${cardInstance.label} (${cardInstance.difficulty})</span>
-                    <button class="delete-btn" onclick="deleteHistoryItem(event, ${indexKey})">🗑️</button>
-                    <button class="favorite-btn ${cardInstance.favorite ? 'favorited' : ''}" onclick="toggleFavorite(event, ${indexKey})">★</button>
-                `;
-                executionListItem.onclick = (clickEvent) => {
-                    if (clickEvent.target.classList.contains('delete-btn') ||
-                        clickEvent.target.classList.contains('favorite-btn')) {
-                        return; // Don't select if clicking delete or favorite
-                    }
-                    clickEvent.stopPropagation();
-                    executionPointerIndex = indexKey;
-                    syncCardDisplaySurface();
-                    // Close sidebar automatically on mobile when a lesson is picked
-                    if (window.innerWidth < 768) { toggleSidebar(); }
-                };
-                trackingListContainer.appendChild(executionListItem);
-            });
-        }
+
         let currentFilter = 'all';
 
         function filterHistory(filter) {
@@ -1834,39 +1955,49 @@ ${difficultyPrompt} ${componentPrompt} As a panelist, ask a short, direct, and s
             renderHistoryPanelUI();
         }
 
-        // Modified renderHistoryPanelUI to support filtering
+        // renderHistoryPanelUI() with filtering support (single source of truth)
         function renderHistoryPanelUI() {
             const trackingListContainer = document.getElementById('historyList');
             trackingListContainer.innerHTML = '';
 
-            // Filter cards based on current filter
-            let filteredCards = generatedCardsCollection;
+            // Build a list of { card, originalIndex } so handlers mutate the correct item
+            let items = generatedCardsCollection
+                .map((card, originalIndex) => ({ card, originalIndex }));
+
             if (currentFilter === 'favorites') {
-                filteredCards = generatedCardsCollection.filter(card => card.favorite);
+                items = items.filter(({ card }) => card.favorite);
             }
 
-            filteredCards.forEach((cardInstance, indexKey) => {
+            items.forEach(({ card: cardInstance, originalIndex }, visibleIndex) => {
+                const isActive = originalIndex === executionPointerIndex;
+
                 const executionListItem = document.createElement('li');
-                executionListItem.className = `history-item ${indexKey === executionPointerIndex ? 'active' : ''}`;
+                executionListItem.className = `history-item ${isActive ? 'active' : ''}`;
+
                 executionListItem.innerHTML = `
-            <span>Q${indexKey + 1}: ${cardInstance.label} (${cardInstance.difficulty})</span>
-            <button class="delete-btn" onclick="deleteHistoryItem(event, ${indexKey})">🗑️</button>
-            <button class="favorite-btn ${cardInstance.favorite ? 'favorited' : ''}" onclick="toggleFavorite(event, ${indexKey})">★</button>
-        `;
+                    <span>Q${visibleIndex + 1}: ${cardInstance.label} (${cardInstance.difficulty})</span>
+                    <button class="delete-btn" onclick="deleteHistoryItem(event, ${originalIndex})">🗑️</button>
+                    <button class="favorite-btn ${cardInstance.favorite ? 'favorited' : ''}" onclick="toggleFavorite(event, ${originalIndex})">★</button>
+                `;
+
                 executionListItem.onclick = (clickEvent) => {
                     if (clickEvent.target.classList.contains('delete-btn') ||
                         clickEvent.target.classList.contains('favorite-btn')) {
                         return; // Don't select if clicking delete or favorite
                     }
+
                     clickEvent.stopPropagation();
-                    executionPointerIndex = indexKey;
+                    executionPointerIndex = originalIndex;
                     syncCardDisplaySurface();
+
                     // Close sidebar automatically on mobile when a lesson is picked
                     if (window.innerWidth < 768) { toggleSidebar(); }
                 };
+
                 trackingListContainer.appendChild(executionListItem);
             });
         }
+
 
         function updateFavoriteButton() {
             if (executionPointerIndex === -1) return;
@@ -2181,6 +2312,38 @@ Please provide a helpful, accurate response based on the research proposal.`;
             messagesContainer.appendChild(messageElement);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
             return messageElement;
+        }
+
+        // Dark Mode Functionality
+        function toggleDarkMode() {
+            const body = document.body;
+            const isDarkMode = body.classList.toggle('dark-mode');
+
+            // Update button icon
+            const darkModeToggle = document.getElementById('darkModeToggle');
+            darkModeToggle.textContent = isDarkMode ? '☀️' : '🌙';
+
+            // Save preference to localStorage
+            localStorage.setItem('darkMode', isDarkMode);
+        }
+
+        // Load dark mode preference on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedDarkMode = localStorage.getItem('darkMode');
+            if (savedDarkMode === 'true') {
+                document.body.classList.add('dark-mode');
+                document.getElementById('darkModeToggle').textContent = '☀️';
+            }
+        });
+
+        // Prevent horizontal scrolling
+        document.body.style.overflowX = 'hidden';
+        document.body.style.position = 'relative';
+
+        // Add viewport meta tag fix if not present
+        const viewport = document.querySelector('meta[name="viewport"]');
+        if (viewport) {
+            viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
         }
     </script>
 </body>
