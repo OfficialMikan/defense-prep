@@ -18,6 +18,11 @@ export default async function handler(req, res) {
 
         console.log("Making request to Groq API with model: llama-3.3-70b-versatile");
 
+        // Add JSON keyword to prompt to satisfy Groq's requirement
+        const jsonPrompt = prompt.includes("JSON") || prompt.includes("json")
+            ? prompt
+            : `json\n${prompt}`;
+
         const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
             method: "POST",
             headers: {
@@ -36,13 +41,14 @@ export default async function handler(req, res) {
                         4. Always respond in third person plural ("The researchers...")
                         5. Focus only on the specific research proposal provided
                         6. Extract information directly from the proposal text
-                        7. Do not use general knowledge about research or education`
+                        7. Do not use general knowledge about research or education
+                        8. Return your response in valid JSON format ONLY`
                     },
-                    { role: "user", content: prompt }
+                    { role: "user", content: jsonPrompt }
                 ],
-                temperature: 0.1, // Lower temperature for more deterministic responses
-                max_tokens: 1000,
-                response_format: { type: "json_object" }
+                temperature: 0.1,
+                max_tokens: 1000
+                // Removed response_format to avoid the JSON keyword requirement
             })
         });
 
