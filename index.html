@@ -1177,6 +1177,45 @@
             border-color: #404040;
         }
 
+        .btn-toggle-sidebar {
+            background: var(--duo-blue) !important;
+            color: white !important;
+        }
+
+        :root.dark-mode .btn-toggle-sidebar {
+            background: #2d2d2d !important;
+            color: white !important;
+            border-color: #404040 !important;
+        }
+
+        :root.dark-mode .history-item {
+            background: #2d2d2d;
+            color: #ffffff;
+            border-color: #404040;
+        }
+
+        :root.dark-mode .history-item.active {
+            background: #1a3c5a;
+            color: #ffffff;
+        }
+
+        :root.dark-mode .card-front {
+            background-color: #ffffff !important;
+            color: #4b4b4b !important;
+        }
+
+        :root.dark-mode .card-front .card-text {
+            color: #4b4b4b !important;
+        }
+
+        :root.dark-mode .card-back {
+            background-color: #d7ffb8 !important;
+            border-color: var(--duo-green) !important;
+        }
+
+        :root.dark-mode .card-back .card-text {
+            color: #2b5900 !important;
+        }
 
         /* Mobile Improvements */
         @media (max-width: 768px) {
@@ -1635,9 +1674,10 @@
             </div>
 
             <div class="selectors-title">Research Topic</div>
-            <div class="proposal-selector">
+            <div class="proposal-selector" style="margin-top: -10px;">
                 <button class="btn-proposal" onclick="triggerInterrogation(1)">AI-Assisted Learning Tools</button>
             </div>
+
         </div>
     </div>
 
@@ -1661,6 +1701,15 @@
         function toggleChatbot() {
             const chatbot = document.getElementById('chatbotPopup');
             chatbot.classList.toggle('active');
+
+            // Reset chat when opening
+            if (chatbot.classList.contains('active')) {
+                const messagesContainer = document.getElementById('chatbotMessages');
+                messagesContainer.innerHTML = '<div class="message bot-message">Hello! I\'m your research assistant. Ask me anything about your research proposal.</div>';
+                document.getElementById('chatbotInput').value = '';
+                chatHistory = [];
+                localStorage.removeItem('chatHistory');
+            }
         }
 
         // Glossary Toggle
@@ -1837,7 +1886,7 @@ CRITICAL EXECUTION PROTOCOLS:
 7. RESPONSE FORMAT: Provide ONLY valid JSON in this exact format: {"question": "your question here", "answer": "your answer here"}
 
 RESEARCH PROPOSAL:
-${scopeMetadata.dataDump}
+${scopeMetadata.dataDump || "No research data available."}
 
 ${difficultyPrompt} ${componentPrompt} As a panelist, ask a short, direct, and specific question about their research based ONLY on the provided information. The student researchers will respond in third person plural ('The researchers...') using ONLY information from their proposal. Provide the question and answer in JSON format: {"question": "...", "answer": "..."}`;
 
@@ -2239,8 +2288,8 @@ ${difficultyPrompt} ${componentPrompt} As a panelist, ask a short, direct, and s
 
             try {
                 // Prepare context with research proposal
-                let context = "You are a helpful research assistant for Group 4's research project titled 'The Relationship Between AI-Assisted Learning Tools and the Academic Performance of Students'. Here is their complete research proposal:\n\n";
-                context += `PROPOSAL: ${studyRepositoryContext[1].title}\n${studyRepositoryContext[1].dataDump}\n\n`;
+                let context = "You are a helpful research assistant for Group 4's research project. Here is their research proposal:\n\n";
+                context += studyRepositoryContext[1].dataDump || "No research data available.";
 
                 // Enhanced prompt that prevents generic responses
                 const prompt = `${context}
@@ -2251,11 +2300,8 @@ INSTRUCTIONS:
 1. ONLY answer questions about the specific research proposal provided above
 2. If the question is not related to this research, politely redirect to research topics
 3. Use simple, clear language appropriate for high school students
-4. Extract information directly from the proposal when possible
-5. If no direct info exists, explain based on research context
-6. Keep responses concise but informative
-7. NEVER say "The researchers did not provide information" - always find relevant info or explain
-8. Respond with ONLY the answer text, no JSON or markdown formatting
+4. Keep responses concise but informative
+5. Respond with ONLY the answer text, no JSON or markdown formatting
 
 Please provide a helpful, accurate response based on the research proposal.`;
 
@@ -2293,16 +2339,34 @@ Please provide a helpful, accurate response based on the research proposal.`;
             }
         }
 
+
         function addMessageToChat(message, sender) {
             const messagesContainer = document.getElementById('chatbotMessages');
             const messageElement = document.createElement('div');
             messageElement.classList.add('message');
             messageElement.classList.add(sender + '-message');
             messageElement.textContent = message;
+
+            // Add long press copy functionality for bot messages
+            if (sender === 'bot') {
+                messageElement.addEventListener('contextmenu', function (e) {
+                    e.preventDefault();
+                    navigator.clipboard.writeText(message).then(() => {
+                        // Show temporary feedback
+                        const originalText = messageElement.textContent;
+                        messageElement.textContent = "Copied!";
+                        setTimeout(() => {
+                            messageElement.textContent = originalText;
+                        }, 1000);
+                    });
+                });
+            }
+
             messagesContainer.appendChild(messageElement);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
             return messageElement;
         }
+
 
         // Dark Mode Functionality
         function toggleDarkMode() {
@@ -2316,6 +2380,14 @@ Please provide a helpful, accurate response based on the research proposal.`;
 
             // Persist preference
             localStorage.setItem('darkMode', String(isDarkMode));
+
+            // Update main content background
+            const mainContent = document.querySelector('.main-content');
+            if (isDarkMode) {
+                mainContent.style.background = '#1a1a1a';
+            } else {
+                mainContent.style.background = '#f7f7f7';
+            }
         }
 
 
