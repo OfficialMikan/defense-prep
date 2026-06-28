@@ -2187,19 +2187,8 @@ ${difficultyPrompt} ${componentPrompt} As a panelist, ask a short, direct, and s
             const typingIndicator = addMessageToChat('...', 'bot');
 
             try {
-                // Conversation-based prompt that allows natural dialogue
-                const prompt = `You are a helpful research assistant for Group 4's research project titled "The Relationship Between AI-Assisted Learning Tools and the Academic Performance of Students". 
-        
-        The user said: "${message}"
-        
-        Respond naturally and conversationally to their message. You can discuss:
-        1. The research title: "The Relationship Between AI-Assisted Learning Tools and the Academic Performance of Students"
-        2. The research topic: AI-assisted learning tools and their impact on student academic performance
-        3. General research concepts related to AI in education
-        
-        Keep responses concise, helpful, and related to research topics. 
-        Do NOT repeat the user's message or provide information they didn't ask for.
-        Just provide a direct, helpful response.`;
+                // Simple conversation prompt
+                const prompt = `You are a helpful research assistant. The user said: "${message}". Respond naturally to their message like a normal conversation. Keep responses concise and helpful. Only discuss research topics if the user asks about them.`;
 
                 // Call AI service
                 const response = await fetch("/api/chat", {
@@ -2215,6 +2204,18 @@ ${difficultyPrompt} ${componentPrompt} As a panelist, ask a short, direct, and s
 
                 const data = await response.json();
                 let answer = data.choices[0].message.content;
+
+                // Handle JSON responses with {"response": "..."} or {"message": "..."} format
+                try {
+                    const parsedResponse = JSON.parse(answer);
+                    if (parsedResponse.response) {
+                        answer = parsedResponse.response;
+                    } else if (parsedResponse.message) {
+                        answer = parsedResponse.message;
+                    }
+                } catch (e) {
+                    // If it's not JSON, use the answer as is
+                }
 
                 // Remove typing indicator and add actual response
                 typingIndicator.remove();
