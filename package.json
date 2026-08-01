@@ -1,0 +1,25 @@
+{
+    "name": "defense-prep",
+    "version": "1.0.0",
+    "description": "Group 4 Title Defense Training - AI-powered research panel defense simulator",
+    "private": true,
+    "scripts": {
+        "test": "node tests/run.js",
+        "test:storage": "node tests/storage.test.js",
+        "test:api": "node tests/api.test.js",
+        "test:toast": "node tests/toast.test.js",
+        "serve": "npx --yes http-server -p 8080 -c-1 ."
+    },
+    "keywords": [
+        "defense",
+        "research",
+        "ai",
+        "training",
+        "education"
+    ],
+    "author": "Group 4",
+    "license": "MIT",
+    "engines": {
+        "node": ">=18"
+    }
+}
