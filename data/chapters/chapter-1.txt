@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ﻿Relationship Between ChatGPT, QuillBot Utilization, and Students' Academic Performance
 
 
@@ -218,3 +219,6 @@ Marbea Subd., Sta. Cruz, Magalang, Pampanga
 
 Relationship Between ChatGPT, QuillBot Utilization, and Students' Academic Performance
 
+=======
+Chapter 1 - Introduction Chapter 1: Introduction This chapter introduces the study on the relationship between AI-assisted learning tools and student academic performance. It presents the background of the problem, the significance of the topic, and the purpose of the study. The researchers explain that AI tools such as ChatGPT, Grammarly, and other learning platforms are becoming common in secondary education, especially in the Philippines. These tools may influence how students learn, write, and manage academic tasks in school. The chapter also explains why the researchers chose to study this topic and how the findings may help teachers, students, and school administrators.
+>>>>>>> 8f74ac3 (Implement code changes to enhance functionality and improve performance)

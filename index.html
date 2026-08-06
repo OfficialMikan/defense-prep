@@ -2203,13 +2203,11 @@
         });
 
         function selectChapter(chapterNumber) {
-            if (chapterNumber > 2) return;
             chapterUploadState.activeChapter = chapterNumber;
             currentChapter = chapterNumber;
             populateChapterDropdown();
             populateComponentDropdown();
             populateChapterPreview();
-            openChapterViewer(chapterNumber);
         }
 
         function populateChapterDropdown() {
@@ -2436,6 +2434,94 @@
             });
         }
 
+        async function openChapterViewer(chapterNumber = chapterUploadState.activeChapter) {
+            const overlay = document.getElementById('chapterViewerOverlay');
+            const title = document.getElementById('chapterViewerTitle');
+            const subtitle = document.getElementById('chapterViewerSubtitle');
+            const content = document.getElementById('chapterViewerContent');
+            const scope = getChapterScope(chapterNumber);
+            if (!overlay || !title || !content) return;
+            chapterUploadState.activeChapter = chapterNumber;
+            currentChapter = chapterNumber;
+            populateChapterDropdown();
+            populateComponentDropdown();
+            populateChapterPreview();
+            title.textContent = scope.title;
+            subtitle.textContent = `Previewing Chapter ${chapterNumber}`;
+            content.innerHTML = '<div class="chapter-empty">Loading the plain-text chapter preview…</div>';
+            overlay.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+
+            const docxPath = `/data/chapters/chapter-${chapterNumber}.docx`;
+            const pdfPath = `/data/chapters/chapter-${chapterNumber}.pdf`;
+            const textPath = `/data/chapters/chapter-${chapterNumber}.txt`;
+            let previewText = '';
+
+            try {
+                const textResponse = await fetch(textPath, { cache: 'no-store' });
+                if (textResponse.ok) {
+                    previewText = (await textResponse.text()).trim();
+                }
+            } catch (error) {
+                console.warn('Could not load chapter text preview', error);
+            }
+
+            try {
+                const response = await fetch(pdfPath, { cache: 'no-store' });
+                if (!response.ok) {
+                    throw new Error('PDF not found');
+                }
+
+                content.innerHTML = `
+                    <div class="chapter-preview-meta">PDF preview</div>
+                    <iframe src="${pdfPath}" title="Chapter ${chapterNumber} PDF preview" style="width:100%; min-height: 70vh; border: 1px solid #ddd; border-radius: 12px;"></iframe>
+                    <div class="chapter-preview-actions">
+                        <a class="btn-proposal chapter-viewer-copy" href="${pdfPath}" target="_blank" rel="noopener">Open PDF</a>
+                        <a class="btn-proposal chapter-viewer-copy" href="${docxPath}" target="_blank" rel="noopener">Open original DOCX</a>
+                    </div>
+                `;
+
+                if (previewText) {
+                    content.innerHTML += `
+                        <div class="chapter-preview-meta">Text data dump</div>
+                        <div class="chapter-preview-card">${previewText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')}</div>
+                    `;
+                }
+            } catch (error) {
+                content.innerHTML = `
+                    <div class="chapter-empty">${scope.dataDump || 'No chapter content is available yet.'}</div>
+                    <div class="chapter-preview-actions">
+                        <a class="btn-proposal chapter-viewer-copy" href="${docxPath}" target="_blank" rel="noopener">Open source file</a>
+                    </div>
+                `;
+            }
+        }
+
+        function closeChapterViewer() {
+            const overlay = document.getElementById('chapterViewerOverlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+            }
+            document.body.style.overflow = '';
+        }
+
+        function copyChapterText() {
+            const content = document.getElementById('chapterViewerContent');
+            if (!content) return;
+            navigator.clipboard.writeText(content.textContent).then(() => {
+                const button = document.querySelector('.chapter-viewer-copy');
+                const original = button?.textContent;
+                if (button) {
+                    button.textContent = 'Copied!';
+                    setTimeout(() => {
+                        button.textContent = original;
+                    }, 1000);
+                }
+            }).catch(() => {
+                alert('Unable to copy chapter text.');
+            });
+        }
+
         async function refreshChapterFiles() {
             await loadChapterFilesFromFolder();
             populateChapterPreview();
@@ -2443,32 +2529,24 @@
 
         async function loadChapterFilesFromFolder() {
             const chapterFiles = [
-                { number: 1, path: '/data/chapters/chapter-1.txt', docxPath: '/data/chapters/chapter-1.docx' },
-                { number: 2, path: '/data/chapters/chapter-2.txt', docxPath: '/data/chapters/chapter-2.docx' },
-                { number: 3, path: '/data/chapters/chapter-3.txt', docxPath: '/data/chapters/chapter-3.docx' },
-                { number: 4, path: '/data/chapters/chapter-4.txt', docxPath: '/data/chapters/chapter-4.docx' },
-                { number: 5, path: '/data/chapters/chapter-5.txt', docxPath: '/data/chapters/chapter-5.docx' }
+                { number: 1, path: '/data/chapters/chapter-1.docx' },
+                { number: 2, path: '/data/chapters/chapter-2.docx' },
+                { number: 3, path: '/data/chapters/chapter-3.docx' },
+                { number: 4, path: '/data/chapters/chapter-4.docx' },
+                { number: 5, path: '/data/chapters/chapter-5.docx' }
             ];
 
             const loadedChapters = {};
             for (const entry of chapterFiles) {
                 try {
-                    const textResponse = await fetch(entry.path, { cache: 'no-store' });
-                    if (textResponse.ok) {
-                        const text = (await textResponse.text()).trim();
-                        if (text) {
-                            loadedChapters[entry.number] = text;
-                            continue;
-                        }
-                    }
-
-                    const docxResponse = await fetch(entry.docxPath, { cache: 'no-store' });
-                    if (!docxResponse.ok) continue;
-                    const arrayBuffer = await docxResponse.arrayBuffer();
+                    const response = await fetch(entry.path, { cache: 'no-store' });
+                    if (!response.ok) continue;
+                    const arrayBuffer = await response.arrayBuffer();
                     const extracted = await mammoth.extractRawText({ arrayBuffer });
                     const text = extracted.value || '';
-                    if (text.trim()) {
-                        loadedChapters[entry.number] = text.trim();
+                    const parsed = parseDocxChapters(text);
+                    if (parsed && Object.keys(parsed).length) {
+                        loadedChapters[entry.number] = parsed[1] || parsed[entry.number] || '';
                     }
                 } catch (error) {
                     console.warn(`Could not load ${entry.path}`, error);
