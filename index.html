@@ -2272,19 +2272,37 @@
             }
         }
 
+        function normalizeChapterText(text) {
+            const rawText = String(text || '').replace(/\r/g, '\n').trim();
+            if (!rawText) {
+                return '';
+            }
+
+            return rawText
+                .replace(/^chapter\s*[0-9]+(?:\s*[-–:]\s*)?/gim, '')
+                .replace(/^(introduction|review of related literature|methodology|results and discussion|conclusion and recommendations)\s*[-–:]\s*/gim, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
         function getChapterScope(chapterNumber = chapterUploadState.activeChapter) {
-            const uploadedContent = chapterUploadState.chapters[chapterNumber];
+            const uploadedEntry = chapterUploadState.chapters?.[chapterNumber];
+            const uploadedContent = typeof uploadedEntry === 'string'
+                ? uploadedEntry
+                : uploadedEntry?.dataDump || uploadedEntry?.content || '';
             const fallback = defaultChapterData[chapterNumber];
             const content = uploadedContent || fallback?.dataDump || '';
-            if (!content.trim()) {
-                return {
-                    title: fallback?.title || `Chapter ${chapterNumber}`,
-                    dataDump: `Chapter ${chapterNumber} is not uploaded or could not be detected. Please upload a DOCX file with chapter content.`
-                };
-            }
+            const normalizedContent = normalizeChapterText(content);
+            const title = (typeof uploadedEntry === 'object' && uploadedEntry?.title)
+                ? uploadedEntry.title
+                : fallback?.title || `Chapter ${chapterNumber}`;
+
             return {
-                title: fallback?.title || `Chapter ${chapterNumber}`,
-                dataDump: content
+                title,
+                dataDump: normalizedContent,
+                pdfPath: typeof uploadedEntry === 'object' ? uploadedEntry.pdfPath : `/data/chapters/chapter-${chapterNumber}.pdf`,
+                textPath: typeof uploadedEntry === 'object' ? uploadedEntry.textPath : `/data/chapters/chapter-${chapterNumber}.txt`,
+                docxPath: typeof uploadedEntry === 'object' ? uploadedEntry.docxPath : `/data/chapters/chapter-${chapterNumber}.docx`
             };
         }
 
@@ -2294,18 +2312,17 @@
             const statusLabel = document.getElementById('chapterStatus');
             const activeChapter = chapterUploadState.activeChapter;
             const scope = getChapterScope(activeChapter);
-            const usingFolderData = Boolean(chapterUploadState.chapters && chapterUploadState.chapters[activeChapter]);
+            const usingUploadedFiles = Boolean(chapterUploadState.chapters?.[activeChapter]);
             if (previewTitle) previewTitle.textContent = scope.title;
             if (contentArea) {
-                if (usingFolderData && scope.dataDump) {
-                    const summary = buildChapterSummary(scope.dataDump);
-                    contentArea.innerHTML = summary;
+                if (scope.dataDump) {
+                    contentArea.innerHTML = buildChapterSummary(scope.dataDump);
                 } else {
-                    contentArea.innerHTML = '<div class="chapter-empty">This chapter file is not available in the folder yet.</div>';
+                    contentArea.innerHTML = '<div class="chapter-empty">No uploaded chapter content is available yet.</div>';
                 }
             }
             if (statusLabel) {
-                statusLabel.textContent = usingFolderData ? 'Loaded from chapter files' : 'Chapter file not found';
+                statusLabel.textContent = usingUploadedFiles ? 'Using uploaded chapter files' : 'No uploaded chapter files found';
             }
             saveChapterState();
             document.querySelectorAll('.chapter-btn').forEach((btn) => {
@@ -2322,25 +2339,22 @@
         }
 
         function buildChapterSummary(text) {
-            const cleanText = (text || '').replace(/\s+/g, ' ').trim();
+            const cleanText = normalizeChapterText(text);
             if (!cleanText) {
                 return '<div class="chapter-empty">This chapter file is empty.</div>';
             }
 
-            const sentences = cleanText.split(/(?<=[.!?])\s+/).filter(Boolean);
-            const previewSentences = sentences.slice(0, 4).join(' ');
-            const sections = cleanText.split(/(?:chapter|Chapter)\s*[0-9]+/i).filter(Boolean);
-            const primarySection = sections[0] ? sections[0].trim() : cleanText;
+            const paragraphBlocks = cleanText
+                .split(/\n+/)
+                .map((part) => part.trim())
+                .filter(Boolean);
+            const previewText = paragraphBlocks.slice(0, 3).join(' ');
+            const clippedText = previewText.length > 1400 ? `${previewText.slice(0, 1400)}…` : previewText;
 
             return `
                 <div class="chapter-summary">
                     <div class="chapter-summary-card">
-                        <h4>Overview</h4>
-                        <p>${previewSentences}</p>
-                    </div>
-                    <div class="chapter-summary-card">
-                        <h4>Full Chapter Content</h4>
-                        <p>${primarySection.slice(0, 1200)}${primarySection.length > 1200 ? '…' : ''}</p>
+                        <p>${clippedText}</p>
                     </div>
                 </div>
             `;
@@ -2360,13 +2374,14 @@
             populateChapterPreview();
             title.textContent = scope.title;
             subtitle.textContent = `Previewing Chapter ${chapterNumber}`;
-            content.innerHTML = '<div class="chapter-empty">Loading the plain-text chapter preview…</div>';
+            content.innerHTML = '<div class="chapter-empty">Loading the chapter preview…</div>';
+            content.dataset.rawText = '';
             overlay.style.display = 'flex';
             document.body.style.overflow = 'hidden';
 
-            const docxPath = `/data/chapters/chapter-${chapterNumber}.docx`;
-            const pdfPath = `/data/chapters/chapter-${chapterNumber}.pdf`;
-            const textPath = `/data/chapters/chapter-${chapterNumber}.txt`;
+            const docxPath = scope.docxPath || `/data/chapters/chapter-${chapterNumber}.docx`;
+            const pdfPath = scope.pdfPath || `/data/chapters/chapter-${chapterNumber}.pdf`;
+            const textPath = scope.textPath || `/data/chapters/chapter-${chapterNumber}.txt`;
             let previewText = '';
 
             try {
@@ -2394,12 +2409,14 @@
                 `;
 
                 if (previewText) {
+                    content.dataset.rawText = previewText;
                     content.innerHTML += `
-                        <div class="chapter-preview-meta">Text data dump</div>
+                        <div class="chapter-preview-meta">Uploaded text</div>
                         <div class="chapter-preview-card">${previewText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')}</div>
                     `;
                 }
             } catch (error) {
+                content.dataset.rawText = scope.dataDump || '';
                 content.innerHTML = `
                     <div class="chapter-empty">${scope.dataDump || 'No chapter content is available yet.'}</div>
                     <div class="chapter-preview-actions">
@@ -2420,95 +2437,8 @@
         function copyChapterText() {
             const content = document.getElementById('chapterViewerContent');
             if (!content) return;
-            navigator.clipboard.writeText(content.textContent).then(() => {
-                const button = document.querySelector('.chapter-viewer-copy');
-                const original = button?.textContent;
-                if (button) {
-                    button.textContent = 'Copied!';
-                    setTimeout(() => {
-                        button.textContent = original;
-                    }, 1000);
-                }
-            }).catch(() => {
-                alert('Unable to copy chapter text.');
-            });
-        }
-
-        async function openChapterViewer(chapterNumber = chapterUploadState.activeChapter) {
-            const overlay = document.getElementById('chapterViewerOverlay');
-            const title = document.getElementById('chapterViewerTitle');
-            const subtitle = document.getElementById('chapterViewerSubtitle');
-            const content = document.getElementById('chapterViewerContent');
-            const scope = getChapterScope(chapterNumber);
-            if (!overlay || !title || !content) return;
-            chapterUploadState.activeChapter = chapterNumber;
-            currentChapter = chapterNumber;
-            populateChapterDropdown();
-            populateComponentDropdown();
-            populateChapterPreview();
-            title.textContent = scope.title;
-            subtitle.textContent = `Previewing Chapter ${chapterNumber}`;
-            content.innerHTML = '<div class="chapter-empty">Loading the plain-text chapter preview…</div>';
-            overlay.style.display = 'flex';
-            document.body.style.overflow = 'hidden';
-
-            const docxPath = `/data/chapters/chapter-${chapterNumber}.docx`;
-            const pdfPath = `/data/chapters/chapter-${chapterNumber}.pdf`;
-            const textPath = `/data/chapters/chapter-${chapterNumber}.txt`;
-            let previewText = '';
-
-            try {
-                const textResponse = await fetch(textPath, { cache: 'no-store' });
-                if (textResponse.ok) {
-                    previewText = (await textResponse.text()).trim();
-                }
-            } catch (error) {
-                console.warn('Could not load chapter text preview', error);
-            }
-
-            try {
-                const response = await fetch(pdfPath, { cache: 'no-store' });
-                if (!response.ok) {
-                    throw new Error('PDF not found');
-                }
-
-                content.innerHTML = `
-                    <div class="chapter-preview-meta">PDF preview</div>
-                    <iframe src="${pdfPath}" title="Chapter ${chapterNumber} PDF preview" style="width:100%; min-height: 70vh; border: 1px solid #ddd; border-radius: 12px;"></iframe>
-                    <div class="chapter-preview-actions">
-                        <a class="btn-proposal chapter-viewer-copy" href="${pdfPath}" target="_blank" rel="noopener">Open PDF</a>
-                        <a class="btn-proposal chapter-viewer-copy" href="${docxPath}" target="_blank" rel="noopener">Open original DOCX</a>
-                    </div>
-                `;
-
-                if (previewText) {
-                    content.innerHTML += `
-                        <div class="chapter-preview-meta">Text data dump</div>
-                        <div class="chapter-preview-card">${previewText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')}</div>
-                    `;
-                }
-            } catch (error) {
-                content.innerHTML = `
-                    <div class="chapter-empty">${scope.dataDump || 'No chapter content is available yet.'}</div>
-                    <div class="chapter-preview-actions">
-                        <a class="btn-proposal chapter-viewer-copy" href="${docxPath}" target="_blank" rel="noopener">Open source file</a>
-                    </div>
-                `;
-            }
-        }
-
-        function closeChapterViewer() {
-            const overlay = document.getElementById('chapterViewerOverlay');
-            if (overlay) {
-                overlay.style.display = 'none';
-            }
-            document.body.style.overflow = '';
-        }
-
-        function copyChapterText() {
-            const content = document.getElementById('chapterViewerContent');
-            if (!content) return;
-            navigator.clipboard.writeText(content.textContent).then(() => {
+            const textToCopy = content.dataset.rawText || content.textContent || '';
+            navigator.clipboard.writeText(textToCopy).then(() => {
                 const button = document.querySelector('.chapter-viewer-copy');
                 const original = button?.textContent;
                 if (button) {
@@ -2529,27 +2459,47 @@
 
         async function loadChapterFilesFromFolder() {
             const chapterFiles = [
-                { number: 1, path: '/data/chapters/chapter-1.docx' },
-                { number: 2, path: '/data/chapters/chapter-2.docx' },
-                { number: 3, path: '/data/chapters/chapter-3.docx' },
-                { number: 4, path: '/data/chapters/chapter-4.docx' },
-                { number: 5, path: '/data/chapters/chapter-5.docx' }
+                { number: 1, textPath: '/data/chapters/chapter-1.txt', pdfPath: '/data/chapters/chapter-1.pdf', docxPath: '/data/chapters/chapter-1.docx' },
+                { number: 2, textPath: '/data/chapters/chapter-2.txt', pdfPath: '/data/chapters/chapter-2.pdf', docxPath: '/data/chapters/chapter-2.docx' },
+                { number: 3, textPath: '/data/chapters/chapter-3.txt', pdfPath: '/data/chapters/chapter-3.pdf', docxPath: '/data/chapters/chapter-3.docx' },
+                { number: 4, textPath: '/data/chapters/chapter-4.txt', pdfPath: '/data/chapters/chapter-4.pdf', docxPath: '/data/chapters/chapter-4.docx' },
+                { number: 5, textPath: '/data/chapters/chapter-5.txt', pdfPath: '/data/chapters/chapter-5.pdf', docxPath: '/data/chapters/chapter-5.docx' }
             ];
 
             const loadedChapters = {};
             for (const entry of chapterFiles) {
                 try {
-                    const response = await fetch(entry.path, { cache: 'no-store' });
-                    if (!response.ok) continue;
-                    const arrayBuffer = await response.arrayBuffer();
+                    const textResponse = await fetch(entry.textPath, { cache: 'no-store' });
+                    if (textResponse.ok) {
+                        const text = (await textResponse.text()).trim();
+                        if (text) {
+                            loadedChapters[entry.number] = {
+                                title: defaultChapterData[entry.number]?.title || `Chapter ${entry.number}`,
+                                dataDump: normalizeChapterText(text),
+                                pdfPath: entry.pdfPath,
+                                textPath: entry.textPath,
+                                docxPath: entry.docxPath
+                            };
+                            continue;
+                        }
+                    }
+
+                    const docxResponse = await fetch(entry.docxPath, { cache: 'no-store' });
+                    if (!docxResponse.ok) continue;
+                    const arrayBuffer = await docxResponse.arrayBuffer();
                     const extracted = await mammoth.extractRawText({ arrayBuffer });
                     const text = extracted.value || '';
-                    const parsed = parseDocxChapters(text);
-                    if (parsed && Object.keys(parsed).length) {
-                        loadedChapters[entry.number] = parsed[1] || parsed[entry.number] || '';
+                    if (text.trim()) {
+                        loadedChapters[entry.number] = {
+                            title: defaultChapterData[entry.number]?.title || `Chapter ${entry.number}`,
+                            dataDump: normalizeChapterText(text),
+                            pdfPath: entry.pdfPath,
+                            textPath: entry.textPath,
+                            docxPath: entry.docxPath
+                        };
                     }
                 } catch (error) {
-                    console.warn(`Could not load ${entry.path}`, error);
+                    console.warn(`Could not load ${entry.textPath}`, error);
                 }
             }
 
