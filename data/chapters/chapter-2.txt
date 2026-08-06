@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ﻿METHODS
 Research Design
        This study will employ a quantitative research design because it enables the researchers to collect numerical data from a sufficiently large population and perform statistical analyses that reveal patterns and relationships among variables. This approach is appropriate because it allows the researchers to examine the relationship between the utilization of ChatGPT and QuillBot among Grade 12 students and their academic performance. Quantitative research also helps reduce the influence of bias through systematic data collection and analysis, enabling the researchers to accurately interpret the data and produce valid and reliable findings (Alford & Teater, 2025).
@@ -38,3 +39,6 @@ Marbea Subd., Sta. Cruz, Magalang, Pampanga
 
 Relationship Between ChatGPT, QuillBot Utilization, and Students' Academic Performance
 
+=======
+Chapter 2 - Review of Related Literature Chapter 2: Review of Related Literature This chapter summarizes existing studies and scholarly discussions about AI-assisted learning tools in educational settings. It highlights how digital platforms can support personalized learning, improve writing accuracy, and make research work easier for students. The chapter also discusses concerns about dependency, reliability, and the need to balance technology use with critical thinking and academic integrity. The researchers review previous studies and compare them with the current study to identify the gap that the research aims to address. The literature review helps establish the importance of the study and provides support for the research questions and objectives.
+>>>>>>> 8f74ac3 (Implement code changes to enhance functionality and improve performance)
