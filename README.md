@@ -24,36 +24,6 @@ history, photo and PDF export, dark mode, and offline support.
 - **Accessibility** — keyboard navigation, skip link, ARIA roles, reduced-motion
   support.
 
-## Project Structure
-
-```
-defense-prep/
-├── index.html              # Slim HTML shell, links to external CSS + JS
-├── vercel.json             # Vercel deployment config + CSP / security headers
-├── package.json            # Test scripts + serve convenience
-├── sw.js                   # Service worker
-├── css/
-│   └── styles.css          # All styles
-├── js/
-│   ├── storage.js          # Safe localStorage wrappers
-│   ├── toast.js            # Toast notification system
-│   ├── api.js              # AI API client (Gemini / Groq / OpenAI)
-│   ├── data.js             # Research component definitions + proposal loader
-│   ├── chatbot.js          # Chatbot UI + logic
-│   └── app.js              # Core app: state, flashcard, sidebar, modal, etc.
-├── data/
-│   └── research-proposal.json
-├── api/
-│   └── chat.js             # Vercel serverless function for AI calls
-├── tests/
-│   ├── _test-runner.js     # Minimal describe / it / assert framework
-│   ├── storage.test.js
-│   ├── api.test.js
-│   ├── toast.test.js
-│   └── run.js              # Runs all suites
-└── .gitignore
-```
-
 ## Quick Start
 
 ### Serve locally
