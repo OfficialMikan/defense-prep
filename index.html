@@ -9,9 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <!-- mammoth.js: render .docx files directly inside the Chapter Viewer modal -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js" crossorigin="anonymous"
-        referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js"></script>
     <style>
         :root {
             --duo-green: #58cc02;
@@ -98,6 +96,51 @@
 
         :root.dark-mode .chatbot-input {
             background: #1f1f1f;
+        }
+
+        :root.dark-mode .chapter-panel {
+            background: #1f1f1f;
+            border-color: #333;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+        }
+
+        :root.dark-mode .chapter-toolbar p,
+        :root.dark-mode .chapter-status,
+        :root.dark-mode .chapter-summary-card p,
+        :root.dark-mode .chapter-empty {
+            color: #e6e6e6;
+        }
+
+        :root.dark-mode .chapter-btn {
+            background: #2a2a2a;
+            color: #f5f5f5;
+            border-color: #444;
+            border-bottom-color: #333;
+        }
+
+        :root.dark-mode .chapter-btn.loaded {
+            background: #243726;
+            color: #d9ffd4;
+            border-color: #3f6b3f;
+        }
+
+        :root.dark-mode .chapter-preview {
+            background: #262626;
+            border-color: #444;
+        }
+
+        :root.dark-mode .chapter-summary-card {
+            background: #2f2f2f;
+            border-color: #444;
+        }
+
+        :root.dark-mode .chapter-preview-title,
+        :root.dark-mode .chapter-summary-card h4 {
+            color: #8dd9ff;
+        }
+
+        :root.dark-mode .btn-proposal {
+            color: #ffffff;
         }
 
         /* --- Custom Intro Loading Screen --- */
@@ -539,20 +582,30 @@
             border-color: var(--duo-blue);
         }
 
+        .component-hint {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            text-align: center;
+            margin-top: -8px;
+            margin-bottom: 12px;
+        }
+
         .flashcard-section {
             width: 100%;
             max-width: 800px;
             margin: 20px 0;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
             position: relative;
             flex-shrink: 0;
         }
 
         .flashcard-wrapper {
             width: 100%;
-            max-width: 600px;
-            min-height: 350px;
+            max-width: 650px;
+            min-height: 380px;
             perspective: 1200px;
             padding: 0 10px;
             position: relative;
@@ -561,7 +614,7 @@
 
         .flashcard {
             width: 100%;
-            min-height: 350px;
+            min-height: 380px;
             position: relative;
             transform-style: preserve-3d;
             transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
@@ -576,7 +629,7 @@
         .card-face {
             position: absolute;
             width: 100%;
-            min-height: 350px;
+            min-height: 380px;
             backface-visibility: hidden;
             padding: 30px;
             display: flex;
@@ -750,10 +803,133 @@
             display: flex;
             flex-wrap: wrap;
             gap: 10px;
-            margin: 20px 0;
+            margin: 0;
             justify-content: center;
             width: 100%;
             max-width: 800px;
+        }
+
+        .compact-selector {
+            justify-content: center;
+        }
+
+        .chapter-panel {
+            width: min(860px, 100%);
+            margin: 24px auto 0;
+            padding: 18px;
+            background: white;
+            border: 2px solid var(--duo-gray);
+            border-radius: 24px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+        }
+
+        .chapter-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 14px;
+        }
+
+        .chapter-toolbar p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        .chapter-grid {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .chapter-btn {
+            background: #f4f4f4;
+            color: var(--text-dark);
+            border: 2px solid var(--duo-gray);
+            border-bottom: 4px solid var(--duo-gray-shadow);
+            padding: 10px 8px;
+            border-radius: 14px;
+            cursor: pointer;
+            font-family: var(--font);
+            font-weight: 800;
+            font-size: 0.9rem;
+            transition: all 0.1s ease;
+        }
+
+        .chapter-btn.active {
+            background: var(--duo-blue);
+            color: white;
+            border-color: var(--duo-blue);
+            border-bottom-color: var(--duo-blue-shadow);
+        }
+
+        .chapter-btn.loaded {
+            border-color: var(--duo-green);
+            background: #effff0;
+            color: var(--duo-green-shadow);
+        }
+
+        .chapter-btn:active {
+            border-bottom-width: 0px;
+            transform: translateY(4px);
+        }
+
+        .chapter-preview {
+            border: 2px solid var(--duo-gray);
+            border-radius: 18px;
+            padding: 16px;
+            background: #fbfbfb;
+            min-height: 240px;
+            max-height: 420px;
+            overflow-y: auto;
+        }
+
+        .chapter-status {
+            font-size: 0.8rem;
+            color: var(--duo-blue);
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .chapter-preview-title {
+            font-weight: 800;
+            margin-bottom: 10px;
+            color: var(--duo-purple);
+            font-size: 1rem;
+        }
+
+        .chapter-summary {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .chapter-summary-card {
+            background: white;
+            border: 1px solid var(--duo-gray);
+            border-radius: 14px;
+            padding: 12px 14px;
+        }
+
+        .chapter-summary-card h4 {
+            font-size: 0.95rem;
+            color: var(--duo-purple);
+            margin-bottom: 6px;
+        }
+
+        .chapter-summary-card p {
+            color: var(--text-dark);
+            font-size: 0.92rem;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        .chapter-empty {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            line-height: 1.6;
         }
 
         .btn-proposal {
@@ -761,8 +937,44 @@
             color: white;
             border: none;
             border-bottom: 4px solid var(--duo-purple-shadow);
-            padding: 12px 20px;
-            border-radius: 16px;
+            padding: 12px 22px;
+            border-radius: 14px;
+            cursor: pointer;
+            font-family: var(--font);
+            font-weight: 800;
+            font-size: 0.92rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.1s ease;
+            flex: 0 0 auto;
+            min-width: auto;
+        }
+
+        .btn-generate-large {
+            width: 580px;
+            height: 48px;
+            padding: 0 20px;
+            font-size: 0.95rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-proposal:active {
+            border-bottom-width: 0px;
+            transform: translateY(4px);
+        }
+
+        .upload-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--duo-teal);
+            color: white;
+            border: none;
+            border-bottom: 4px solid var(--duo-teal-shadow);
+            padding: 10px 16px;
+            border-radius: 14px;
             cursor: pointer;
             font-family: var(--font);
             font-weight: 800;
@@ -770,11 +982,9 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
             transition: all 0.1s ease;
-            flex: 1;
-            min-width: 150px;
         }
 
-        .btn-proposal:active {
+        .upload-btn:active {
             border-bottom-width: 0px;
             transform: translateY(4px);
         }
@@ -1520,414 +1730,8 @@
                 right: 40px;
             }
         }
-
-        /* --- Chapters section & grid --- */
-        .chapters-section {
-            width: 100%;
-            max-width: 800px;
-            margin: 20px 0 0;
-            padding: 0 10px;
-        }
-
-        .chapters-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-            gap: 15px;
-            margin-top: 15px;
-        }
-
-        .chapter-card {
-            background: #ffffff;
-            border: 2px solid var(--duo-gray);
-            border-bottom: 4px solid var(--duo-gray);
-            border-radius: 16px;
-            padding: 16px 12px;
-            cursor: pointer;
-            text-align: center;
-            font-family: var(--font);
-            font-weight: 800;
-            color: var(--text-dark);
-            transition: all 0.1s ease;
-            position: relative;
-        }
-
-        .chapter-card:active {
-            border-bottom-width: 2px;
-            transform: translateY(2px);
-        }
-
-        .chapter-card.active {
-            color: var(--duo-blue);
-            border-color: var(--duo-blue);
-            border-bottom-color: var(--duo-blue-shadow);
-            background: #ddf4ff;
-        }
-
-        .chapter-card.missing {
-            color: var(--duo-red);
-            border-color: var(--duo-gray);
-            border-bottom-color: var(--duo-gray-shadow);
-            opacity: 0.85;
-        }
-
-        .chapter-card .ch-num {
-            font-size: 1.5rem;
-            display: block;
-            line-height: 1.1;
-        }
-
-        .chapter-card .ch-name {
-            font-size: 0.8rem;
-            font-weight: 700;
-            margin-top: 4px;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .chapter-card .ch-status {
-            font-size: 0.7rem;
-            margin-top: 8px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
-        }
-
-        .chapter-card:not(.missing) .ch-status {
-            color: var(--duo-green);
-        }
-
-        .chapter-card.missing .ch-status {
-            color: var(--duo-red);
-        }
-
-        /* --- Chapter Viewer Overlay / Modal --- */
-        #chapter-viewer-overlay {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.4);
-            z-index: 10005;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .chapter-viewer-box {
-            background: #ffffff;
-            border-radius: 24px;
-            max-width: 900px;
-            width: 92%;
-            max-height: 88vh;
-            display: flex;
-            flex-direction: column;
-            border: 2px solid var(--duo-gray);
-            border-bottom: 6px solid var(--duo-gray);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-            overflow: hidden;
-        }
-
-        .chapter-viewer-header {
-            padding: 18px 24px;
-            border-bottom: 2px solid var(--duo-gray);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background: linear-gradient(135deg, #ddf4ff, #ffffff);
-        }
-
-        .chapter-viewer-header h3 {
-            color: var(--duo-blue);
-            font-size: 1.4rem;
-            font-weight: 900;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .chapter-viewer-close {
-            background: none;
-            border: none;
-            font-size: 1.6rem;
-            color: var(--text-muted);
-            cursor: pointer;
-            font-weight: 900;
-            line-height: 1;
-            transition: color 0.15s ease;
-        }
-
-        .chapter-viewer-close:hover {
-            color: var(--duo-red);
-        }
-
-        .chapter-viewer-body {
-            flex: 1;
-            padding: 28px 36px;
-            overflow-y: auto;
-            min-height: 0;
-            -webkit-overflow-scrolling: touch;
-            color: #2b2b2b;
-            background: #ffffff;
-            line-height: 1.65;
-        }
-
-        .chapter-content h1,
-        .chapter-content h2,
-        .chapter-content h3,
-        .chapter-content h4 {
-            color: #1a1a1a;
-            margin: 1.2em 0 0.5em;
-            line-height: 1.25;
-            font-weight: 800;
-        }
-
-        .chapter-content h1 {
-            font-size: 1.6rem;
-            border-bottom: 2px solid var(--duo-gray);
-            padding-bottom: 8px;
-        }
-
-        .chapter-content h2 {
-            font-size: 1.3rem;
-        }
-
-        .chapter-content h3 {
-            font-size: 1.1rem;
-        }
-
-        .chapter-content p {
-            margin: 0 0 1em;
-            text-align: justify;
-            font-size: 1.05rem;
-        }
-
-        .chapter-content ul,
-        .chapter-content ol {
-            margin: 0 0 1.2em 1.4em;
-        }
-
-        .chapter-content li {
-            margin-bottom: 0.4em;
-            font-size: 1.02rem;
-        }
-
-        .chapter-content table {
-            border-collapse: collapse;
-            width: 100%;
-            margin: 1.2em 0;
-            font-size: 0.95rem;
-        }
-
-        .chapter-content th,
-        .chapter-content td {
-            border: 1px solid #ddd;
-            padding: 10px 14px;
-            text-align: left;
-        }
-
-        .chapter-content th {
-            background: #f5f5f5;
-            font-weight: 800;
-        }
-
-        .chapter-content img {
-            max-width: 100%;
-            height: auto;
-            display: block;
-            margin: 1.2em auto;
-            border-radius: 8px;
-        }
-
-        .chapter-missing {
-            text-align: center;
-            padding: 60px 24px;
-            color: var(--duo-red);
-            font-weight: 800;
-            font-size: 1.15rem;
-        }
-
-        .chapter-missing .icon {
-            font-size: 3.5rem;
-            display: block;
-            margin-bottom: 16px;
-        }
-
-        .chapter-loading {
-            text-align: center;
-            padding: 60px 24px;
-            color: var(--duo-blue);
-            font-weight: 800;
-            font-size: 1.15rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .chapter-footer-hint {
-            padding: 10px 24px;
-            border-top: 1px solid var(--duo-gray);
-            background: #fafafa;
-            font-size: 0.75rem;
-            color: var(--text-muted);
-            text-align: center;
-            font-weight: 700;
-        }
-
-        /* --- Dark Mode compatibility overrides --- */
-        :root.dark-mode .chapter-card {
-            background: #2d2d2d;
-            color: #ffffff;
-            border-color: #404040;
-        }
-
-        :root.dark-mode .chapter-card.active {
-            background: #1a3c5a;
-        }
-
-        :root.dark-mode .chapter-viewer-box {
-            background: #1f1f1f;
-            color: #ffffff;
-            border-color: #404040;
-        }
-
-        :root.dark-mode .chapter-viewer-header {
-            background: linear-gradient(135deg, #1a3c5a, #2d2d2d);
-            border-color: #404040;
-        }
-
-        :root.dark-mode .chapter-viewer-body {
-            background: #1f1f1f;
-            color: #e8e8e8;
-        }
-
-        :root.dark-mode .chapter-content h1,
-        :root.dark-mode .chapter-content h2,
-        :root.dark-mode .chapter-content h3,
-        :root.dark-mode .chapter-content h4 {
-            color: #ffffff;
-        }
-
-        :root.dark-mode .chapter-content h1 {
-            border-color: #404040;
-        }
-
-        :root.dark-mode .chapter-content th {
-            background: #2d2d2d;
-            color: #ffffff;
-        }
-
-        :root.dark-mode .chapter-content th,
-        :root.dark-mode .chapter-content td {
-            border-color: #404040;
-        }
-
-        :root.dark-mode .chapter-footer-hint {
-            background: #2d2d2d;
-            border-color: #404040;
-            color: var(--text-muted);
-        }
-
-        /* --- Chatbot Header adjustments --- */
-        .chatbot-header .title {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .chatbot-header .toggle-research {
-            background: rgba(255, 255, 255, 0.18);
-            border: 1px solid rgba(255, 255, 255, 0.5);
-            color: #ffffff;
-            border-radius: 10px;
-            padding: 4px 8px;
-            font-size: 0.7rem;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            cursor: pointer;
-            transition: all 0.15s ease;
-        }
-
-        .chatbot-header .toggle-research.on {
-            background: #ffffff;
-            color: var(--duo-teal-shadow);
-        }
-
-        .chatbot-context {
-            background: rgba(0, 0, 0, 0.05);
-            color: var(--text-dark);
-            padding: 6px 16px;
-            font-size: 0.75rem;
-            font-weight: 700;
-            text-align: center;
-            letter-spacing: 0.3px;
-            border-bottom: 2px solid var(--duo-gray);
-        }
-
-        :root.dark-mode .chatbot-context {
-            background: #2d2d2d;
-            border-color: #404040;
-            color: #ffffff;
-        }
-
-        .chatbot-context .ctx-name {
-            color: var(--duo-blue);
-        }
-
-        .chatbot-context.no-data {
-            background: #fff0f0;
-            color: var(--duo-red);
-        }
-
-        :root.dark-mode .chatbot-context.no-data {
-            background: #4a1c1c;
-            color: #ff9e9e;
-        }
-
-        /* --- Loader / Flipper Overlay updates --- */
-        .face-loader {
-            display: none;
-            position: absolute;
-            background: rgba(255, 255, 255, 0.95);
-            width: 100%;
-            height: 100%;
-            top: 0;
-            left: 0;
-            display: flex;
-            border-radius: 20px;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            padding: 20px;
-            z-index: 10;
-            color: var(--duo-blue);
-            font-weight: 900;
-            font-size: 1.1rem;
-            border: 2px solid var(--duo-gray);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        :root.dark-mode .face-loader {
-            background: rgba(31, 31, 31, 0.95);
-            border-color: var(--duo-gray);
-            color: var(--duo-blue);
-        }
-
-        /* Adjust responsive layouts for Chapters Grid */
-        @media (max-width: 768px) {
-            .chapters-grid {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 10px;
-            }
-
-            .chapter-viewer-box {
-                width: 95%;
-                max-height: 92vh;
-            }
-
-            .chapter-viewer-body {
-                padding: 16px 20px;
-            }
-        }
     </style>
+</head>
 
 <body>
 
@@ -2019,20 +1823,19 @@
                     <button class="btn-difficulty btn-hard" onclick="setDifficulty('hard')">Hard</button>
                 </div>
 
+                <div class="selectors-title">Select Chapter</div>
+                <div class="component-selector">
+                    <select class="component-dropdown" id="chapterDropdown"
+                        onchange="setChapterFromDropdown()"></select>
+                </div>
+
                 <div class="selectors-title">Select Research Component</div>
                 <div class="component-selector">
-                    <select class="component-dropdown" id="componentDropdown" onchange="setComponentFromDropdown()">
-                        <option value="all">All Components (Random)</option>
-                        <option value="title">Title</option>
-                        <option value="introduction">Introduction</option>
-                        <option value="research_design">Research Design</option>
-                        <option value="respondents">Respondents</option>
-                        <option value="motivation">Motivation</option>
-                        <option value="research_gap">Research Gap</option>
-                        <option value="statement">Statement of Problem</option>
-                        <option value="method">Research Method</option>
-                    </select>
+                    <select class="component-dropdown" id="componentDropdown"
+                        onchange="setComponentFromDropdown()"></select>
                 </div>
+                <div class="component-hint" id="componentHint">Chapter 1 and Chapter 2 options are available. Chapters
+                    3–5 are unavailable for now.</div>
             </div>
 
             <div class="flashcard-section">
@@ -2069,16 +1872,29 @@
                         </div>
                     </div>
                 </div>
+                <div class="proposal-selector compact-selector">
+                    <button class="btn-proposal btn-generate-large" onclick="triggerInterrogation()">Generate
+                        Flashcard</button>
+                </div>
             </div>
 
-            <div class="proposal-selector" style="margin-top: 10px;">
-                <button class="btn-proposal" id="generateFlashcardBtn" onclick="triggerInterrogation()">Generate
-                    Flashcard</button>
-            </div>
-
-            <div class="chapters-section">
-                <div class="selectors-title">Research Chapters</div>
-                <div class="chapters-grid" id="chaptersGrid"></div>
+            <div class="chapter-panel">
+                <div class="chapter-toolbar">
+                    <p>Chapter content is loaded from the folder-based research files and used for flashcards and the
+                        assistant.</p>
+                </div>
+                <div class="chapter-grid">
+                    <button class="chapter-btn active" data-chapter="1" onclick="selectChapter(1)">Chapter 1</button>
+                    <button class="chapter-btn" data-chapter="2" onclick="selectChapter(2)">Chapter 2</button>
+                    <button class="chapter-btn" data-chapter="3" onclick="selectChapter(3)">Chapter 3</button>
+                    <button class="chapter-btn" data-chapter="4" onclick="selectChapter(4)">Chapter 4</button>
+                    <button class="chapter-btn" data-chapter="5" onclick="selectChapter(5)">Chapter 5</button>
+                </div>
+                <div class="chapter-preview">
+                    <div class="chapter-status" id="chapterStatus">Waiting for chapter content…</div>
+                    <div class="chapter-preview-title" id="chapterPreviewTitle">Chapter 1</div>
+                    <div id="chapterContentArea" class="chapter-summary"></div>
+                </div>
             </div>
 
         </div>
@@ -2119,29 +1935,94 @@
             }
         }
 
-        const studyRepositoryContext = {
-            "1": {
-                "title": "The Relationship Between AI-Assisted Learning Tools and the Academic Performance of Students",
-                "dataDump": ""
+        const defaultChapterData = {
+            1: {
+                title: "Chapter 1 - Introduction",
+                dataDump: "Chapter 1: Introduction. This chapter introduces the study on the relationship between AI-assisted learning tools and student academic performance. It presents the background of the problem, the significance of the topic, and the purpose of the study. The researchers explain that AI tools such as ChatGPT, Grammarly, and other learning platforms are becoming common in secondary education, especially in the Philippines, and that these tools may influence how students learn, write, and manage academic tasks."
+            },
+            2: {
+                title: "Chapter 2 - Review of Related Literature",
+                dataDump: "Chapter 2: Review of Related Literature. This chapter summarizes existing studies and scholarly discussions about AI-assisted learning tools in educational settings. It highlights how digital platforms can support personalized learning, improve writing accuracy, and make research work easier for students. The chapter also discusses concerns about dependency, reliability, and the need to balance technology use with critical thinking and academic integrity."
+            },
+            3: {
+                title: "Chapter 3 - Methodology",
+                dataDump: "Chapter 3: Methodology. This chapter describes the research design, respondents, instruments, and procedures used in the study. It explains that the researchers will use a quantitative approach to examine the relationship between the use of AI-assisted learning tools and student academic performance. The chapter outlines the sampling method, data collection process, and how the gathered information will be analyzed to answer the research questions."
+            },
+            4: {
+                title: "Chapter 4 - Results and Discussion",
+                dataDump: "Chapter 4: Results and Discussion. This chapter presents the findings of the study and explains how the results relate to the research problem. It discusses patterns in the use of AI tools, the level of academic performance observed among students, and the possible effects of AI-assisted learning on study habits, assignment quality, and overall achievement."
+            },
+            5: {
+                title: "Chapter 5 - Conclusion and Recommendations",
+                dataDump: "Chapter 5: Conclusion and Recommendations. This chapter summarizes the study's major findings and draws conclusions about the role of AI-assisted learning tools in the academic performance of students. It recommends that schools and students use these tools responsibly, maintain critical judgment, and supplement AI use with traditional learning practices so that academic growth remains balanced and meaningful."
             }
         };
 
-        // Research components in order
-        const researchComponents = [
-            { key: 'title', name: 'Title' },
-            { key: 'introduction', name: 'Introduction' },
-            { key: 'research_design', name: 'Research Design' },
-            { key: 'respondents', name: 'Respondents' },
-            { key: 'motivation', name: 'Motivation' },
-            { key: 'research_gap', name: 'Research Gap' },
-            { key: 'statement', name: 'Statement of Problem' },
-            { key: 'method', name: 'Research Method' }
-        ];
+        const chapterUploadState = {
+            activeChapter: 1,
+            chapters: {}
+        };
+
+        function saveChapterState() {
+            localStorage.setItem('chapterUploadState', JSON.stringify({
+                activeChapter: chapterUploadState.activeChapter,
+                chapters: chapterUploadState.chapters
+            }));
+        }
+
+        function loadChapterState() {
+            try {
+                const stored = localStorage.getItem('chapterUploadState');
+                if (!stored) return;
+                const parsed = JSON.parse(stored);
+                if (parsed && typeof parsed === 'object') {
+                    chapterUploadState.activeChapter = parsed.activeChapter || 1;
+                    chapterUploadState.chapters = parsed.chapters || {};
+                }
+            } catch (error) {
+                console.error('Failed to restore chapter state:', error);
+            }
+        }
+
+        const chapterComponentOptions = {
+            1: [
+                { key: 'all', name: 'All Components (Random)', available: true },
+                { key: 'title', name: 'Title', available: true },
+                { key: 'introduction', name: 'Introduction', available: true },
+                { key: 'research_design', name: 'Research Design', available: true },
+                { key: 'respondents', name: 'Respondents', available: true },
+                { key: 'motivation', name: 'Motivation', available: true },
+                { key: 'research_gap', name: 'Research Gap', available: true },
+                { key: 'statement', name: 'Statement of Problem', available: true },
+                { key: 'method', name: 'Research Method', available: true },
+                { key: 'references', name: 'References', available: true }
+            ],
+            2: [
+                { key: 'all', name: 'All Components (Random)', available: true },
+                { key: 'research_design', name: 'Research Design', available: true },
+                { key: 'respondents_participants', name: 'Respondents/Participants', available: true },
+                { key: 'instruments', name: 'Instruments', available: true },
+                { key: 'ethical_considerations', name: 'Ethical Considerations', available: true },
+                { key: 'data_collection', name: 'Data Collection', available: true },
+                { key: 'data_analysis', name: 'Data Analysis/Statistical Treatment of Data', available: true },
+                { key: 'references', name: 'References', available: true }
+            ],
+            3: [
+                { key: 'unavailable', name: 'Chapter 3 is unavailable for now', available: false }
+            ],
+            4: [
+                { key: 'unavailable', name: 'Chapter 4 is unavailable for now', available: false }
+            ],
+            5: [
+                { key: 'unavailable', name: 'Chapter 5 is unavailable for now', available: false }
+            ]
+        };
 
         let generatedCardsCollection = [];
         let executionPointerIndex = -1;
         let currentDifficulty = 'medium';
         let currentComponent = 'all';
+        let currentChapter = 1;
         let chatHistory = [];
         let favorites = [];
 
@@ -2179,7 +2060,14 @@
             }
 
             // Load chat history into UI
+            loadChapterState();
+            currentChapter = chapterUploadState.activeChapter || 1;
             loadChatHistory();
+            populateChapterDropdown();
+            populateComponentDropdown();
+            loadChapterFilesFromFolder().finally(() => {
+                populateChapterPreview();
+            });
 
             // Explicitly hide the loader on page load to ensure it's not stuck
             document.getElementById('loader').style.display = 'none';
@@ -2194,6 +2082,218 @@
                 mainContent.style.background = '#1a1a1a';
             }
         });
+
+        function selectChapter(chapterNumber) {
+            chapterUploadState.activeChapter = chapterNumber;
+            currentChapter = chapterNumber;
+            populateChapterDropdown();
+            populateComponentDropdown();
+            populateChapterPreview();
+        }
+
+        function populateChapterDropdown() {
+            const dropdown = document.getElementById('chapterDropdown');
+            if (!dropdown) return;
+
+            dropdown.innerHTML = '';
+            [1, 2, 3, 4, 5].forEach((chapterNumber) => {
+                const opt = document.createElement('option');
+                opt.value = chapterNumber;
+                opt.textContent = `Chapter ${chapterNumber}`;
+                if (chapterNumber > 2) {
+                    opt.disabled = true;
+                    opt.textContent = `Chapter ${chapterNumber} (Unavailable)`;
+                }
+                dropdown.appendChild(opt);
+            });
+
+            dropdown.value = currentChapter;
+        }
+
+        function setChapterFromDropdown() {
+            const dropdown = document.getElementById('chapterDropdown');
+            const selectedChapter = Number(dropdown.value);
+            if (!Number.isNaN(selectedChapter) && selectedChapter <= 2) {
+                selectChapter(selectedChapter);
+            }
+        }
+
+        function populateComponentDropdown() {
+            const dropdown = document.getElementById('componentDropdown');
+            const hint = document.getElementById('componentHint');
+            if (!dropdown) return;
+
+            const availableOptions = chapterComponentOptions[currentChapter] || chapterComponentOptions[1];
+            dropdown.innerHTML = '';
+
+            availableOptions.forEach((option) => {
+                const opt = document.createElement('option');
+                opt.value = option.key;
+                opt.textContent = option.name;
+                if (!option.available) {
+                    opt.disabled = true;
+                }
+                dropdown.appendChild(opt);
+            });
+
+            const hasCurrent = availableOptions.some((option) => option.key === currentComponent && option.available);
+            if (!hasCurrent) {
+                currentComponent = 'all';
+            }
+            dropdown.value = currentComponent;
+
+            if (hint) {
+                if (currentChapter === 1) {
+                    hint.textContent = 'Chapter 1 components are available. Chapter 2 options are also ready.';
+                } else if (currentChapter === 2) {
+                    hint.textContent = 'Chapter 2 components are available. Chapters 3–5 are unavailable for now.';
+                } else {
+                    hint.textContent = 'Chapters 3–5 are unavailable for now.';
+                }
+            }
+        }
+
+        function getChapterScope(chapterNumber = chapterUploadState.activeChapter) {
+            const uploadedContent = chapterUploadState.chapters[chapterNumber];
+            const fallback = defaultChapterData[chapterNumber];
+            const content = uploadedContent || fallback?.dataDump || '';
+            if (!content.trim()) {
+                return {
+                    title: fallback?.title || `Chapter ${chapterNumber}`,
+                    dataDump: `Chapter ${chapterNumber} is not uploaded or could not be detected. Please upload a DOCX file with chapter content.`
+                };
+            }
+            return {
+                title: fallback?.title || `Chapter ${chapterNumber}`,
+                dataDump: content
+            };
+        }
+
+        function populateChapterPreview() {
+            const previewTitle = document.getElementById('chapterPreviewTitle');
+            const contentArea = document.getElementById('chapterContentArea');
+            const statusLabel = document.getElementById('chapterStatus');
+            const activeChapter = chapterUploadState.activeChapter;
+            const scope = getChapterScope(activeChapter);
+            const usingFolderData = Boolean(chapterUploadState.chapters && chapterUploadState.chapters[activeChapter]);
+            if (previewTitle) previewTitle.textContent = scope.title;
+            if (contentArea) {
+                if (usingFolderData && scope.dataDump) {
+                    const summary = buildChapterSummary(scope.dataDump);
+                    contentArea.innerHTML = summary;
+                } else {
+                    contentArea.innerHTML = '<div class="chapter-empty">This chapter file is not available in the folder yet.</div>';
+                }
+            }
+            if (statusLabel) {
+                statusLabel.textContent = usingFolderData ? 'Loaded from chapter files' : 'Chapter file not found';
+            }
+            saveChapterState();
+            document.querySelectorAll('.chapter-btn').forEach((btn) => {
+                const chapterNumber = Number(btn.dataset.chapter);
+                const isLoaded = Boolean(chapterUploadState.chapters && chapterUploadState.chapters[chapterNumber]);
+                btn.classList.toggle('active', chapterNumber === activeChapter);
+                btn.classList.toggle('loaded', isLoaded);
+                if (isLoaded) {
+                    btn.textContent = `✓ Chapter ${chapterNumber}`;
+                } else {
+                    btn.textContent = `Chapter ${chapterNumber}`;
+                }
+            });
+        }
+
+        function buildChapterSummary(text) {
+            const cleanText = (text || '').replace(/\s+/g, ' ').trim();
+            if (!cleanText) {
+                return '<div class="chapter-empty">This chapter file is empty.</div>';
+            }
+
+            const sentences = cleanText.split(/(?<=[.!?])\s+/).filter(Boolean);
+            const previewSentences = sentences.slice(0, 4).join(' ');
+            const sections = cleanText.split(/(?:chapter|Chapter)\s*[0-9]+/i).filter(Boolean);
+            const primarySection = sections[0] ? sections[0].trim() : cleanText;
+
+            return `
+                <div class="chapter-summary">
+                    <div class="chapter-summary-card">
+                        <h4>Overview</h4>
+                        <p>${previewSentences}</p>
+                    </div>
+                    <div class="chapter-summary-card">
+                        <h4>Full Chapter Content</h4>
+                        <p>${primarySection.slice(0, 1200)}${primarySection.length > 1200 ? '…' : ''}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function refreshChapterFiles() {
+            await loadChapterFilesFromFolder();
+            populateChapterPreview();
+        }
+
+        async function loadChapterFilesFromFolder() {
+            const chapterFiles = [
+                { number: 1, path: '/data/chapters/chapter-1.docx' },
+                { number: 2, path: '/data/chapters/chapter-2.docx' },
+                { number: 3, path: '/data/chapters/chapter-3.docx' },
+                { number: 4, path: '/data/chapters/chapter-4.docx' },
+                { number: 5, path: '/data/chapters/chapter-5.docx' }
+            ];
+
+            const loadedChapters = {};
+            for (const entry of chapterFiles) {
+                try {
+                    const response = await fetch(entry.path, { cache: 'no-store' });
+                    if (!response.ok) continue;
+                    const arrayBuffer = await response.arrayBuffer();
+                    const extracted = await mammoth.extractRawText({ arrayBuffer });
+                    const text = extracted.value || '';
+                    const parsed = parseDocxChapters(text);
+                    if (parsed && Object.keys(parsed).length) {
+                        loadedChapters[entry.number] = parsed[1] || parsed[entry.number] || '';
+                    }
+                } catch (error) {
+                    console.warn(`Could not load ${entry.path}`, error);
+                }
+            }
+
+            if (Object.keys(loadedChapters).length) {
+                chapterUploadState.chapters = loadedChapters;
+                chapterUploadState.activeChapter = 1;
+                saveChapterState();
+            }
+        }
+
+        function parseDocxChapters(text) {
+            const normalized = (text || '').replace(/\r/g, '\n').trim();
+            if (!normalized) {
+                return {};
+            }
+
+            const chapterMatches = [...normalized.matchAll(/\bchapter\s*(i|ii|iii|iv|v|[1-5])\b/gi)];
+            if (chapterMatches.length > 0) {
+                const parsedChapters = {};
+                chapterMatches.forEach((match, index) => {
+                    const chapterLabel = match[1].toLowerCase();
+                    const chapterNumber = romanToNumber(chapterLabel) || Number(chapterLabel);
+                    const startIndex = match.index + match[0].length;
+                    const endIndex = chapterMatches[index + 1] ? chapterMatches[index + 1].index : normalized.length;
+                    const content = normalized.slice(startIndex, endIndex).replace(/\s+/g, ' ').trim();
+                    if (chapterNumber >= 1 && chapterNumber <= 5 && content) {
+                        parsedChapters[chapterNumber] = content;
+                    }
+                });
+                return parsedChapters;
+            }
+
+            return { 1: normalized.replace(/\s+/g, ' ').trim() };
+        }
+
+        function romanToNumber(value) {
+            const romanMap = { i: 1, ii: 2, iii: 3, iv: 4, v: 5 };
+            return romanMap[value.toLowerCase()] || null;
+        }
 
         function loadChatHistory() {
             const messagesContainer = document.getElementById('chatbotMessages');
@@ -2233,7 +2333,7 @@
             currentComponent = dropdown.value;
         }
 
-        async function triggerInterrogation(targetProposalNum) {
+        async function triggerInterrogation() {
             // 1. Check if history limit reached
             if (generatedCardsCollection.length >= MAX_HISTORY_SIZE) {
                 alert(`Your lesson history is getting very full! Please Reset Levels to keep performance fast. Maximum ${MAX_HISTORY_SIZE} items allowed.`);
@@ -2244,7 +2344,7 @@
             screenOverlayLoader.style.display = 'flex';
 
             // 2. Prepare the prompt with difficulty and component
-            const scopeMetadata = studyRepositoryContext[1]; // Always use the single topic
+            const scopeMetadata = getChapterScope(chapterUploadState.activeChapter);
 
             let difficultyPrompt = "";
             switch (currentDifficulty) {
@@ -2260,13 +2360,14 @@
             }
 
             let componentPrompt = "";
+            const availableComponents = (chapterComponentOptions[currentChapter] || chapterComponentOptions[1])
+                .filter((option) => option.available && option.key !== 'all');
+
             if (currentComponent === 'all') {
-                // Randomly select a component
-                const randomComponent = researchComponents[Math.floor(Math.random() * researchComponents.length)];
+                const randomComponent = availableComponents[Math.floor(Math.random() * availableComponents.length)] || { name: 'main aspect' };
                 componentPrompt = `Focus specifically on the ${randomComponent.name} of the research proposal.`;
             } else {
-                // Find the component name
-                const componentObj = researchComponents.find(c => c.key === currentComponent);
+                const componentObj = availableComponents.find((option) => option.key === currentComponent);
                 if (componentObj) {
                     componentPrompt = `Focus specifically on the ${componentObj.name} of the research proposal.`;
                 } else {
@@ -2689,22 +2790,24 @@ ${difficultyPrompt} ${componentPrompt} As a panelist, ask a short, direct, and s
 
             try {
                 // Assistant-focused prompt
-                const prompt = `You are a helpful research assistant for a project titled "The Relationship Between AI-Assisted Learning Tools and the Academic Performance of Students". 
-        
-        User message: "${message}"
-        
-        Instructions:
-        1. Respond directly as a helpful assistant
-        2. Use "I" and "you" language, not third person
-        3. Only discuss the research project when relevant
-        4. Keep responses concise and helpful
-        5. If asked about the research, provide factual information:
-           - Title: The Relationship Between AI-Assisted Learning Tools and the Academic Performance of Students
-           - Topic: How AI tools affect student academic performance
-        6. Don't volunteer information unless asked
-        7. Respond naturally to general conversation too
-        
-        Respond directly to the user's message:`;
+                const scopeMetadata = getChapterScope(chapterUploadState.activeChapter);
+                const prompt = `You are a helpful research assistant for the currently selected research chapter.
+
+Current chapter: ${scopeMetadata.title}
+Chapter content: ${scopeMetadata.dataDump}
+
+User message: "${message}"
+
+Instructions:
+1. Respond directly as a helpful assistant
+2. Use "I" and "you" language, not third person
+3. Only discuss the research chapter content when relevant
+4. Keep responses concise and helpful
+5. If asked about the research, use only the chapter content provided above
+6. Do not rely on any older data dump once a new DOCX file is uploaded
+7. Respond naturally to general conversation too
+
+Respond directly to the user's message:`;
 
                 // Call AI service
                 const response = await fetch("/api/chat", {
