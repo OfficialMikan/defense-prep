@@ -9,6 +9,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- mammoth.js: render .docx files directly inside the Chapter Viewer modal -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js" crossorigin="anonymous"
+        referrerpolicy="no-referrer"></script>
     <style>
         :root {
             --duo-green: #58cc02;
@@ -1517,8 +1520,414 @@
                 right: 40px;
             }
         }
+
+        /* --- Chapters section & grid --- */
+        .chapters-section {
+            width: 100%;
+            max-width: 800px;
+            margin: 20px 0 0;
+            padding: 0 10px;
+        }
+
+        .chapters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .chapter-card {
+            background: #ffffff;
+            border: 2px solid var(--duo-gray);
+            border-bottom: 4px solid var(--duo-gray);
+            border-radius: 16px;
+            padding: 16px 12px;
+            cursor: pointer;
+            text-align: center;
+            font-family: var(--font);
+            font-weight: 800;
+            color: var(--text-dark);
+            transition: all 0.1s ease;
+            position: relative;
+        }
+
+        .chapter-card:active {
+            border-bottom-width: 2px;
+            transform: translateY(2px);
+        }
+
+        .chapter-card.active {
+            color: var(--duo-blue);
+            border-color: var(--duo-blue);
+            border-bottom-color: var(--duo-blue-shadow);
+            background: #ddf4ff;
+        }
+
+        .chapter-card.missing {
+            color: var(--duo-red);
+            border-color: var(--duo-gray);
+            border-bottom-color: var(--duo-gray-shadow);
+            opacity: 0.85;
+        }
+
+        .chapter-card .ch-num {
+            font-size: 1.5rem;
+            display: block;
+            line-height: 1.1;
+        }
+
+        .chapter-card .ch-name {
+            font-size: 0.8rem;
+            font-weight: 700;
+            margin-top: 4px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .chapter-card .ch-status {
+            font-size: 0.7rem;
+            margin-top: 8px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .chapter-card:not(.missing) .ch-status {
+            color: var(--duo-green);
+        }
+
+        .chapter-card.missing .ch-status {
+            color: var(--duo-red);
+        }
+
+        /* --- Chapter Viewer Overlay / Modal --- */
+        #chapter-viewer-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: 10005;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .chapter-viewer-box {
+            background: #ffffff;
+            border-radius: 24px;
+            max-width: 900px;
+            width: 92%;
+            max-height: 88vh;
+            display: flex;
+            flex-direction: column;
+            border: 2px solid var(--duo-gray);
+            border-bottom: 6px solid var(--duo-gray);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+
+        .chapter-viewer-header {
+            padding: 18px 24px;
+            border-bottom: 2px solid var(--duo-gray);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: linear-gradient(135deg, #ddf4ff, #ffffff);
+        }
+
+        .chapter-viewer-header h3 {
+            color: var(--duo-blue);
+            font-size: 1.4rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .chapter-viewer-close {
+            background: none;
+            border: none;
+            font-size: 1.6rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-weight: 900;
+            line-height: 1;
+            transition: color 0.15s ease;
+        }
+
+        .chapter-viewer-close:hover {
+            color: var(--duo-red);
+        }
+
+        .chapter-viewer-body {
+            flex: 1;
+            padding: 28px 36px;
+            overflow-y: auto;
+            min-height: 0;
+            -webkit-overflow-scrolling: touch;
+            color: #2b2b2b;
+            background: #ffffff;
+            line-height: 1.65;
+        }
+
+        .chapter-content h1,
+        .chapter-content h2,
+        .chapter-content h3,
+        .chapter-content h4 {
+            color: #1a1a1a;
+            margin: 1.2em 0 0.5em;
+            line-height: 1.25;
+            font-weight: 800;
+        }
+
+        .chapter-content h1 {
+            font-size: 1.6rem;
+            border-bottom: 2px solid var(--duo-gray);
+            padding-bottom: 8px;
+        }
+
+        .chapter-content h2 {
+            font-size: 1.3rem;
+        }
+
+        .chapter-content h3 {
+            font-size: 1.1rem;
+        }
+
+        .chapter-content p {
+            margin: 0 0 1em;
+            text-align: justify;
+            font-size: 1.05rem;
+        }
+
+        .chapter-content ul,
+        .chapter-content ol {
+            margin: 0 0 1.2em 1.4em;
+        }
+
+        .chapter-content li {
+            margin-bottom: 0.4em;
+            font-size: 1.02rem;
+        }
+
+        .chapter-content table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 1.2em 0;
+            font-size: 0.95rem;
+        }
+
+        .chapter-content th,
+        .chapter-content td {
+            border: 1px solid #ddd;
+            padding: 10px 14px;
+            text-align: left;
+        }
+
+        .chapter-content th {
+            background: #f5f5f5;
+            font-weight: 800;
+        }
+
+        .chapter-content img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 1.2em auto;
+            border-radius: 8px;
+        }
+
+        .chapter-missing {
+            text-align: center;
+            padding: 60px 24px;
+            color: var(--duo-red);
+            font-weight: 800;
+            font-size: 1.15rem;
+        }
+
+        .chapter-missing .icon {
+            font-size: 3.5rem;
+            display: block;
+            margin-bottom: 16px;
+        }
+
+        .chapter-loading {
+            text-align: center;
+            padding: 60px 24px;
+            color: var(--duo-blue);
+            font-weight: 800;
+            font-size: 1.15rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .chapter-footer-hint {
+            padding: 10px 24px;
+            border-top: 1px solid var(--duo-gray);
+            background: #fafafa;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-align: center;
+            font-weight: 700;
+        }
+
+        /* --- Dark Mode compatibility overrides --- */
+        :root.dark-mode .chapter-card {
+            background: #2d2d2d;
+            color: #ffffff;
+            border-color: #404040;
+        }
+
+        :root.dark-mode .chapter-card.active {
+            background: #1a3c5a;
+        }
+
+        :root.dark-mode .chapter-viewer-box {
+            background: #1f1f1f;
+            color: #ffffff;
+            border-color: #404040;
+        }
+
+        :root.dark-mode .chapter-viewer-header {
+            background: linear-gradient(135deg, #1a3c5a, #2d2d2d);
+            border-color: #404040;
+        }
+
+        :root.dark-mode .chapter-viewer-body {
+            background: #1f1f1f;
+            color: #e8e8e8;
+        }
+
+        :root.dark-mode .chapter-content h1,
+        :root.dark-mode .chapter-content h2,
+        :root.dark-mode .chapter-content h3,
+        :root.dark-mode .chapter-content h4 {
+            color: #ffffff;
+        }
+
+        :root.dark-mode .chapter-content h1 {
+            border-color: #404040;
+        }
+
+        :root.dark-mode .chapter-content th {
+            background: #2d2d2d;
+            color: #ffffff;
+        }
+
+        :root.dark-mode .chapter-content th,
+        :root.dark-mode .chapter-content td {
+            border-color: #404040;
+        }
+
+        :root.dark-mode .chapter-footer-hint {
+            background: #2d2d2d;
+            border-color: #404040;
+            color: var(--text-muted);
+        }
+
+        /* --- Chatbot Header adjustments --- */
+        .chatbot-header .title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chatbot-header .toggle-research {
+            background: rgba(255, 255, 255, 0.18);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            color: #ffffff;
+            border-radius: 10px;
+            padding: 4px 8px;
+            font-size: 0.7rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .chatbot-header .toggle-research.on {
+            background: #ffffff;
+            color: var(--duo-teal-shadow);
+        }
+
+        .chatbot-context {
+            background: rgba(0, 0, 0, 0.05);
+            color: var(--text-dark);
+            padding: 6px 16px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-align: center;
+            letter-spacing: 0.3px;
+            border-bottom: 2px solid var(--duo-gray);
+        }
+
+        :root.dark-mode .chatbot-context {
+            background: #2d2d2d;
+            border-color: #404040;
+            color: #ffffff;
+        }
+
+        .chatbot-context .ctx-name {
+            color: var(--duo-blue);
+        }
+
+        .chatbot-context.no-data {
+            background: #fff0f0;
+            color: var(--duo-red);
+        }
+
+        :root.dark-mode .chatbot-context.no-data {
+            background: #4a1c1c;
+            color: #ff9e9e;
+        }
+
+        /* --- Loader / Flipper Overlay updates --- */
+        .face-loader {
+            display: none;
+            position: absolute;
+            background: rgba(255, 255, 255, 0.95);
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            display: flex;
+            border-radius: 20px;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 20px;
+            z-index: 10;
+            color: var(--duo-blue);
+            font-weight: 900;
+            font-size: 1.1rem;
+            border: 2px solid var(--duo-gray);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        :root.dark-mode .face-loader {
+            background: rgba(31, 31, 31, 0.95);
+            border-color: var(--duo-gray);
+            color: var(--duo-blue);
+        }
+
+        /* Adjust responsive layouts for Chapters Grid */
+        @media (max-width: 768px) {
+            .chapters-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+
+            .chapter-viewer-box {
+                width: 95%;
+                max-height: 92vh;
+            }
+
+            .chapter-viewer-body {
+                padding: 16px 20px;
+            }
+        }
     </style>
-</head>
 
 <body>
 
@@ -1662,9 +2071,14 @@
                 </div>
             </div>
 
-            <div class="selectors-title">Research Topic</div>
-            <div class="proposal-selector" style="margin-top: -10px;">
-                <button class="btn-proposal" onclick="triggerInterrogation(1)">AI-Assisted Learning Tools</button>
+            <div class="proposal-selector" style="margin-top: 10px;">
+                <button class="btn-proposal" id="generateFlashcardBtn" onclick="triggerInterrogation()">Generate
+                    Flashcard</button>
+            </div>
+
+            <div class="chapters-section">
+                <div class="selectors-title">Research Chapters</div>
+                <div class="chapters-grid" id="chaptersGrid"></div>
             </div>
 
         </div>
@@ -1708,7 +2122,7 @@
         const studyRepositoryContext = {
             "1": {
                 "title": "The Relationship Between AI-Assisted Learning Tools and the Academic Performance of Students",
-                "dataDump": "The Relationship Between AI-Assisted Learning Tools and the Academic Performance of Students by Group # 4\nGroup Members\nGONZALES, SAMANTHA NICOLE B.\nMANARANG, MIKAN M.\nALMARIO, JOYCE P.\nBONDOC, CASSANDRA D.\nCASUPANAN, RHIAN ARYANA L.\nDIZON, LYNX LEONARD G.\nStrand & Section\nGrade 12 STEM (A) - COLOSSIANS\nProposed Title\nThe Relationship Between AI-Assisted Learning Tools and the Academic Performance of Students\nIntroduction\n      There exists a paradigm shift occurring in the educational setting due to the rapid evolution of innovative data processing technologies. The application of Artificial Intelligence (AI) as a tool that helps students perform their schoolwork and individual study sessions can be considered a groundbreaking innovation in modern educational approaches (Flores & Manocan, 2024). Such an approach becomes particularly relevant for Philippine schools where Grade 12 students encounter the essential year of senior high school filled with academic workloads and sophisticated core subjects. The issue under investigation is relevant since AI platforms have stopped being a novelty; instead, they have become part of classroom reality. Although these tools are widely recognized as learning resources that may support educational tasks, student engagement, and personalized learning experiences, the rapid and widespread adoption of AI technology has raised questions regarding its relationship with student learning and academic performance (Maamor et al., 2024).\n       In terms of the quantitative approach, the current study aims to examine the relationship between two operational variables, namely the use of AI-assisted learning tools (platform types, frequency of access, and specific applications in the learning process) and the level of student academic performance (student grades and assignment quality metrics). Nowadays, a vast number of secondary school students rely on algorithmic platforms such as ChatGPT and Grammarly when conducting research, gathering study materials, writing essays, and understanding complex topics in the curriculum (Hafeez, 2026). At the same time, the increasing use of advanced technological tools has generated discussions regarding their association with students’ cognitive and academic development. While automated platforms provide immediate access to information and learning support, concerns remain regarding how their usage relates to students’ independent thinking and problem-solving skills (Aviso et al., 2026).\n       As seen from the discussion above, there remains a gap in understanding how the use of AI-assisted learning tools is associated with students’ academic performance and cognitive development. This issue has been widely discussed in contemporary educational studies. According to empirical research, although many students perceive AI technologies as beneficial because of their convenience and support for learning activities, concerns continue to exist regarding academic honesty, critical thinking, and dependence on technology (Vieriu & Petrea, 2025). Thus, the current quantitative investigation is highly important for the local academic community as it seeks to gather concrete information regarding the ways in which Grade 12 learners use AI platforms and how such usage is related to their academic performance. The findings may provide researchers and school administrators with an empirical basis for developing balanced academic frameworks and digital guidelines.\nMotivation of the Researcher\n      The selected topic, “The Relationship Between AI-Assisted Learning Tools and Students’ Academic Performance,” was chosen because the researchers recognized the growing influence of artificial intelligence in the field of education. Due to technological advancements, many students have begun using AI-assisted learning tools as supplementary resources to understand lessons, develop study skills, and support their academic tasks. However, the relationship between the use of these tools and students’ academic performance remains a relevant issue that requires further investigation.\n       The motivation behind this study came from the researchers’ observations of the increasing use of AI-assisted learning tools among learners for academic purposes. Although AI tools provide convenience, accessibility, and assistance in completing academic tasks, questions remain regarding how their usage relates to learners’ knowledge, critical thinking, and overall academic performance. This became an area of interest for the researchers, particularly among Grade 12 students who face higher academic demands and must prepare for future educational and career opportunities.\nThrough this study, the researchers aim to determine the relationship between the use of AI-assisted learning tools and the academic performance of Grade 12 students. This research seeks to provide a better understanding of how the utilization of AI technology is associated with students’ learning experiences and academic performance. The findings of this study may help students, teachers, and educational institutions better understand the role of AI in learning and promote informed and responsible integration of technology in education. \nResearch Gap\n       Despite the fact that current educational literature provides a detailed analysis of the usefulness and learning efficiency of the use of automated software, the existing empirical studies mainly assess the role and influence of AI implementation in higher education or certain technical spheres. The lack of empirical information about Grade 12 Senior High School students studying their final year at a private suburban school such as Magalang Christian Ecumenical School Inc. is a key deficiency in educational literature. \nThis deficiency appears in the lack of local statistical analysis of how the uncontrolled use of tools such as ChatGPT and Grammarly creates a distinct cognitive trade-off and can be used as a kind of shortcut which will limit the development of critical thinking skills. The second important issue is the lack of local statistical information on the correlation between particular operational variables, including the frequency of the usage of AI and specific types of platform applications, with objective academic measures, such as student grades and assignment quality. \nStatement of the Problem\n       This study aims to examine the relationship between the utilization of Artificial Intelligence (AI)-assisted learning tools and the academic performance of Grade 12 students. Specifically, it seeks to answer the following questions:\n1.) What is the extent of students' utilization of AI-assisted learning tools in terms of:\n\n* Frequency of access (e.g., daily, weekly)\n\n* Platform types utilized (e.g., generative chatbots, automated editors)\n\n* Specific learning applications (e.g., primary research, essay writing, task execution)?\n\n2.) What is the level of academic performance of the Grade 12 students as measured by their:\n\n* First-semester general averages\n\n* Specialized core subject quarterly grades from last academic year?\n\n3.) Is there a significant relationship of AI-assisted learning tool utilization on the academic performance of Grade 12 students?\nResearch Design\n       This study will employ a quantitative research approach, specifically a non-experimental correlational research design, to examine the relationship between the use of AI-assisted learning tools among Grade 12 students and their academic performance. This design is appropriate for the study as it enables the researchers to determine whether a significant association exists between the frequency of AI tool utilization and academic metrics without manipulating the variables. \nRespondents\n       Our target respondents are 50 Grade 12 students from Magalang Christian Ecumenical School Inc. (MCESI) during the school year 2026-2027. These students were selected through simple random sampling, which means that all Grade 12 students have an equal chance of being chosen to participate in this study.\nResearch Method\n       The researchers will use a structured questionnaire to collect data on the use of AI-assisted learning tools among Grade 12 students. After obtaining the necessary permissions, questionnaires will be distributed to selected respondents through simple random sampling. The collected data will be analyzed using frequency, percentage, mean, and correlation analysis. \nREFERENCES\n\nAviso, K. B., et al. (2026). Evaluating the dual impacts of artificial intelligence tools on secondary student critical thinking (Academic Research Report). Studocu Repository. https://www.studocu.com/ph/u/155746612\n\nFlores, M. J., & Manocan, R. L. (2024). AI tools: Its effect to the academic performance of Grade 12 students of Solido National High School (Unpublished Manuscript). Scribd Document Repository. https://www.scribd.com/document/757485684/AI-Tools-Its-Effect-to-the-Academic-Performance-of-Grdae-12-Students-of-Solido-National-High-School-final\n\nHafeez, M. (2026). The impact of artificial intelligence tools on academic performance and learning efficiency among university students. Academia.edu. https://www.academia.edu/164866409/The_Impact_of_Artificial_Intelligence_Tools_on_Academic_Performance_and_Learning_Efficiency_Among_University_Students\n\nMaamor, N., et al. (2024). The effect of artificial intelligence (AI) on students' learning. International Journal of Advanced Research in Education, 6(3), 112-125. https://www.researchgate.net/publication/385329890_The_Effect_of_Artificial_Intelligence_AI_on_Students'_Learning\n\nVieriu, G., & Petrea, S. M. (2025). The impact of artificial intelligence (AI) on students' academic development: Perceptions, benefits, and structural challenges. Education Sciences, 15(3), Article 343. https://doi.org/10.3390/educsci15030343"
+                "dataDump": ""
             }
         };
 
