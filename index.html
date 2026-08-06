@@ -1176,6 +1176,110 @@
             justify-content: center;
         }
 
+        .chapter-viewer-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 10000;
+            padding: 20px;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .chapter-viewer-modal {
+            width: min(900px, 100%);
+            max-height: 90vh;
+            background: white;
+            border-radius: 24px;
+            border: 2px solid var(--duo-gray);
+            border-bottom: 6px solid var(--duo-gray);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chapter-viewer-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 22px;
+            border-bottom: 2px solid var(--duo-gray);
+            background: #f8f8f8;
+        }
+
+        .chapter-viewer-header h3 {
+            margin: 0;
+            color: var(--duo-purple);
+            font-size: 1.1rem;
+            font-weight: 900;
+        }
+
+        .chapter-viewer-close {
+            border: none;
+            background: transparent;
+            font-size: 1.4rem;
+            cursor: pointer;
+            color: var(--text-muted);
+        }
+
+        .chapter-viewer-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 22px;
+            border-bottom: 1px solid var(--duo-gray);
+            gap: 10px;
+        }
+
+        .chapter-viewer-toolbar span {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            font-weight: 700;
+        }
+
+        .chapter-viewer-copy {
+            width: auto;
+            height: auto;
+            padding: 8px 14px;
+            font-size: 0.8rem;
+        }
+
+        .chapter-viewer-content {
+            padding: 20px 22px 24px;
+            overflow-y: auto;
+            line-height: 1.7;
+            color: var(--text-dark);
+            font-size: 0.97rem;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .chapter-preview-card {
+            background: #f8f8f8;
+            border: 1px solid var(--duo-gray);
+            border-radius: 16px;
+            padding: 14px 16px;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .chapter-preview-meta {
+            color: var(--duo-purple);
+            font-size: 0.85rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .chapter-preview-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
         .btn-cancel {
             background: white;
             color: var(--text-muted);
@@ -1752,6 +1856,21 @@
         </div>
     </div>
 
+    <div id="chapterViewerOverlay" class="chapter-viewer-overlay"
+        onclick="if (event.target === this) closeChapterViewer()">
+        <div class="chapter-viewer-modal" onclick="event.stopPropagation()">
+            <div class="chapter-viewer-header">
+                <h3 id="chapterViewerTitle">Chapter</h3>
+                <button class="chapter-viewer-close" onclick="closeChapterViewer()">×</button>
+            </div>
+            <div class="chapter-viewer-toolbar">
+                <span id="chapterViewerSubtitle">Document viewer</span>
+                <button class="btn-proposal chapter-viewer-copy" onclick="copyChapterText()">Copy Text</button>
+            </div>
+            <div id="chapterViewerContent" class="chapter-viewer-content"></div>
+        </div>
+    </div>
+
     <div id="photo-export-zone">
         <div class="export-header" id="export-title">Proposal Title</div>
         <div class="export-q" id="export-q">Question will appear here.</div>
@@ -2084,11 +2203,13 @@
         });
 
         function selectChapter(chapterNumber) {
+            if (chapterNumber > 2) return;
             chapterUploadState.activeChapter = chapterNumber;
             currentChapter = chapterNumber;
             populateChapterDropdown();
             populateComponentDropdown();
             populateChapterPreview();
+            openChapterViewer(chapterNumber);
         }
 
         function populateChapterDropdown() {
@@ -2227,6 +2348,94 @@
             `;
         }
 
+        async function openChapterViewer(chapterNumber = chapterUploadState.activeChapter) {
+            const overlay = document.getElementById('chapterViewerOverlay');
+            const title = document.getElementById('chapterViewerTitle');
+            const subtitle = document.getElementById('chapterViewerSubtitle');
+            const content = document.getElementById('chapterViewerContent');
+            const scope = getChapterScope(chapterNumber);
+            if (!overlay || !title || !content) return;
+            chapterUploadState.activeChapter = chapterNumber;
+            currentChapter = chapterNumber;
+            populateChapterDropdown();
+            populateComponentDropdown();
+            populateChapterPreview();
+            title.textContent = scope.title;
+            subtitle.textContent = `Previewing Chapter ${chapterNumber}`;
+            content.innerHTML = '<div class="chapter-empty">Loading the plain-text chapter preview…</div>';
+            overlay.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+
+            const docxPath = `/data/chapters/chapter-${chapterNumber}.docx`;
+            const pdfPath = `/data/chapters/chapter-${chapterNumber}.pdf`;
+            const textPath = `/data/chapters/chapter-${chapterNumber}.txt`;
+            let previewText = '';
+
+            try {
+                const textResponse = await fetch(textPath, { cache: 'no-store' });
+                if (textResponse.ok) {
+                    previewText = (await textResponse.text()).trim();
+                }
+            } catch (error) {
+                console.warn('Could not load chapter text preview', error);
+            }
+
+            try {
+                const response = await fetch(pdfPath, { cache: 'no-store' });
+                if (!response.ok) {
+                    throw new Error('PDF not found');
+                }
+
+                content.innerHTML = `
+                    <div class="chapter-preview-meta">PDF preview</div>
+                    <iframe src="${pdfPath}" title="Chapter ${chapterNumber} PDF preview" style="width:100%; min-height: 70vh; border: 1px solid #ddd; border-radius: 12px;"></iframe>
+                    <div class="chapter-preview-actions">
+                        <a class="btn-proposal chapter-viewer-copy" href="${pdfPath}" target="_blank" rel="noopener">Open PDF</a>
+                        <a class="btn-proposal chapter-viewer-copy" href="${docxPath}" target="_blank" rel="noopener">Open original DOCX</a>
+                    </div>
+                `;
+
+                if (previewText) {
+                    content.innerHTML += `
+                        <div class="chapter-preview-meta">Text data dump</div>
+                        <div class="chapter-preview-card">${previewText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')}</div>
+                    `;
+                }
+            } catch (error) {
+                content.innerHTML = `
+                    <div class="chapter-empty">${scope.dataDump || 'No chapter content is available yet.'}</div>
+                    <div class="chapter-preview-actions">
+                        <a class="btn-proposal chapter-viewer-copy" href="${docxPath}" target="_blank" rel="noopener">Open source file</a>
+                    </div>
+                `;
+            }
+        }
+
+        function closeChapterViewer() {
+            const overlay = document.getElementById('chapterViewerOverlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+            }
+            document.body.style.overflow = '';
+        }
+
+        function copyChapterText() {
+            const content = document.getElementById('chapterViewerContent');
+            if (!content) return;
+            navigator.clipboard.writeText(content.textContent).then(() => {
+                const button = document.querySelector('.chapter-viewer-copy');
+                const original = button?.textContent;
+                if (button) {
+                    button.textContent = 'Copied!';
+                    setTimeout(() => {
+                        button.textContent = original;
+                    }, 1000);
+                }
+            }).catch(() => {
+                alert('Unable to copy chapter text.');
+            });
+        }
+
         async function refreshChapterFiles() {
             await loadChapterFilesFromFolder();
             populateChapterPreview();
@@ -2234,24 +2443,32 @@
 
         async function loadChapterFilesFromFolder() {
             const chapterFiles = [
-                { number: 1, path: '/data/chapters/chapter-1.docx' },
-                { number: 2, path: '/data/chapters/chapter-2.docx' },
-                { number: 3, path: '/data/chapters/chapter-3.docx' },
-                { number: 4, path: '/data/chapters/chapter-4.docx' },
-                { number: 5, path: '/data/chapters/chapter-5.docx' }
+                { number: 1, path: '/data/chapters/chapter-1.txt', docxPath: '/data/chapters/chapter-1.docx' },
+                { number: 2, path: '/data/chapters/chapter-2.txt', docxPath: '/data/chapters/chapter-2.docx' },
+                { number: 3, path: '/data/chapters/chapter-3.txt', docxPath: '/data/chapters/chapter-3.docx' },
+                { number: 4, path: '/data/chapters/chapter-4.txt', docxPath: '/data/chapters/chapter-4.docx' },
+                { number: 5, path: '/data/chapters/chapter-5.txt', docxPath: '/data/chapters/chapter-5.docx' }
             ];
 
             const loadedChapters = {};
             for (const entry of chapterFiles) {
                 try {
-                    const response = await fetch(entry.path, { cache: 'no-store' });
-                    if (!response.ok) continue;
-                    const arrayBuffer = await response.arrayBuffer();
+                    const textResponse = await fetch(entry.path, { cache: 'no-store' });
+                    if (textResponse.ok) {
+                        const text = (await textResponse.text()).trim();
+                        if (text) {
+                            loadedChapters[entry.number] = text;
+                            continue;
+                        }
+                    }
+
+                    const docxResponse = await fetch(entry.docxPath, { cache: 'no-store' });
+                    if (!docxResponse.ok) continue;
+                    const arrayBuffer = await docxResponse.arrayBuffer();
                     const extracted = await mammoth.extractRawText({ arrayBuffer });
                     const text = extracted.value || '';
-                    const parsed = parseDocxChapters(text);
-                    if (parsed && Object.keys(parsed).length) {
-                        loadedChapters[entry.number] = parsed[1] || parsed[entry.number] || '';
+                    if (text.trim()) {
+                        loadedChapters[entry.number] = text.trim();
                     }
                 } catch (error) {
                     console.warn(`Could not load ${entry.path}`, error);
@@ -2297,10 +2514,8 @@
 
         function loadChatHistory() {
             const messagesContainer = document.getElementById('chatbotMessages');
-            // Clear existing messages except the welcome message
             messagesContainer.innerHTML = '<div class="message bot-message">Hello! I\'m your research assistant. How can I help you today?</div>';
 
-            // Add chat history messages
             chatHistory.forEach(msg => {
                 addMessageToChat(msg.content, msg.role === 'user' ? 'user' : 'bot');
             });
@@ -2315,7 +2530,6 @@
         function setDifficulty(difficulty) {
             currentDifficulty = difficulty;
 
-            // Update UI to show selected difficulty
             document.querySelectorAll('.btn-difficulty').forEach(btn => {
                 btn.style.opacity = '0.7';
                 btn.style.transform = 'none';
@@ -2331,6 +2545,45 @@
         function setComponentFromDropdown() {
             const dropdown = document.getElementById('componentDropdown');
             currentComponent = dropdown.value;
+        }
+
+        function getComponentDisplayName() {
+            const selected = (chapterComponentOptions[currentChapter] || chapterComponentOptions[1]).find((option) => option.key === currentComponent);
+            return selected?.name || 'the selected component';
+        }
+
+        function buildFallbackFlashcard(scopeMetadata) {
+            const sourceText = scopeMetadata.dataDump || '';
+            const cleanText = sourceText.replace(/\s+/g, ' ').trim();
+            const sentences = cleanText.split(/(?<=[.!?])\s+/).filter(Boolean);
+            const firstSentence = sentences[0] || cleanText || 'the study focuses on AI-assisted learning tools and student academic performance.';
+            const componentLabel = getComponentDisplayName();
+            const chapterTitle = scopeMetadata.title || `Chapter ${chapterUploadState.activeChapter}`;
+
+            let question = `What is the main purpose of the study described in ${chapterTitle}?`;
+            let answer = `The researchers explain that ${firstSentence}`;
+
+            if (componentLabel.toLowerCase().includes('research design')) {
+                question = `What research design is described in ${chapterTitle}?`;
+                answer = 'The researchers use a quantitative approach to examine the relationship between the variables in the study.';
+            } else if (componentLabel.toLowerCase().includes('respondent')) {
+                question = `Who are the respondents or participants in ${chapterTitle}?`;
+                answer = 'The researchers identify the respondents or participants as the students or individuals involved in the study.';
+            } else if (componentLabel.toLowerCase().includes('instrument')) {
+                question = `What instruments are used in ${chapterTitle}?`;
+                answer = 'The researchers use structured instruments such as questionnaires or surveys to gather the needed data.';
+            } else if (componentLabel.toLowerCase().includes('ethical')) {
+                question = `What ethical considerations are mentioned in ${chapterTitle}?`;
+                answer = 'The researchers mention ethical considerations such as informed consent, confidentiality, and responsible use of data.';
+            } else if (componentLabel.toLowerCase().includes('data collection')) {
+                question = `How is data collected in ${chapterTitle}?`;
+                answer = 'The researchers collect data through the planned procedures and instruments described in the study.';
+            } else if (componentLabel.toLowerCase().includes('reference')) {
+                question = `What role do references play in ${chapterTitle}?`;
+                answer = 'The references support the study by providing credible sources that justify the research background and discussion.';
+            }
+
+            return { question, answer };
         }
 
         async function triggerInterrogation() {
@@ -2392,8 +2645,8 @@ ${scopeMetadata.dataDump || "No research data available."}
 
 ${difficultyPrompt} ${componentPrompt} As a panelist, ask a short, direct, and specific question about their research based ONLY on the provided information. The student researchers will respond in third person plural ('The researchers...') using ONLY information from their proposal. Provide the question and answer in JSON format: {"question": "...", "answer": "..."}`;
 
+            let structuredData;
             try {
-                // 3. Send request to your own server-side bridge
                 const response = await fetch("/api/chat", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -2404,16 +2657,11 @@ ${difficultyPrompt} ${componentPrompt} As a panelist, ask a short, direct, and s
                     throw new Error(`Server error: ${response.status} - ${response.statusText}`);
                 }
 
-
                 const parsedPackage = await response.json();
 
-                // 4. Parse the AI response with better error handling
-                let structuredData;
                 try {
-                    // Try parsing the content directly
                     structuredData = JSON.parse(parsedPackage.choices[0].message.content);
                 } catch (parseError) {
-                    // If that fails, try to extract JSON from markdown code blocks
                     const content = parsedPackage.choices[0].message.content;
                     const jsonMatch = content.match(/\{.*\}/s);
                     if (jsonMatch) {
@@ -2423,35 +2671,32 @@ ${difficultyPrompt} ${componentPrompt} As a panelist, ask a short, direct, and s
                     }
                 }
 
-                // 5. Validate the structure
                 if (!structuredData.question || !structuredData.answer) {
                     throw new Error("AI response missing question or answer");
                 }
-
-                // 6. Update your app state
-                generatedCardsCollection.push({
-                    id: Date.now(),
-                    label: `AI Research`,
-                    question: structuredData.question,
-                    answer: structuredData.answer,
-                    difficulty: currentDifficulty,
-                    component: currentComponent,
-                    timestamp: new Date().toISOString(),
-                    favorite: false
-                });
-
-                executionPointerIndex = generatedCardsCollection.length - 1;
-                localStorage.setItem('mcesi_sim_history', JSON.stringify(generatedCardsCollection));
-
-                renderHistoryPanelUI();
-                syncCardDisplaySurface();
-
             } catch (error) {
-                console.error("Simulation error:", error);
-                alert(`Connection failed. Debug info: ${error.message}`);
+                console.warn("AI generation failed, using fallback card:", error);
+                structuredData = buildFallbackFlashcard(scopeMetadata);
             } finally {
                 screenOverlayLoader.style.display = 'none';
             }
+
+            generatedCardsCollection.push({
+                id: Date.now(),
+                label: `AI Research${structuredData.fromFallback ? ' (Fallback)' : ''}`,
+                question: structuredData.question,
+                answer: structuredData.answer,
+                difficulty: currentDifficulty,
+                component: currentComponent,
+                timestamp: new Date().toISOString(),
+                favorite: false
+            });
+
+            executionPointerIndex = generatedCardsCollection.length - 1;
+            localStorage.setItem('mcesi_sim_history', JSON.stringify(generatedCardsCollection));
+
+            renderHistoryPanelUI();
+            syncCardDisplaySurface();
         }
 
 
