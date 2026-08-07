@@ -1186,31 +1186,37 @@ async function sendMessage() {
     }
 
     try {
-        // Assistant-focused prompt
-        const prompt = `You are a helpful research assistant for the currently selected research chapter.
+        // Build the conversation history for memory (last ~10 turns only to
+        // keep the token budget low). The chapter content is sent separately
+        // as `chapter` so it is NOT re-sent with every message.
+        const history = chatHistory.slice(-10).map((msg) => ({
+            role: msg.role === 'user' ? 'user' : 'assistant',
+            content: msg.content
+        }));
+        history.push({ role: 'user', content: message });
 
-Current chapter: ${scopeMetadata.title}
-Chapter content: ${scopeMetadata.dataDump}
-
-User message: "${message}"
-
-        Instructions:
-        1. Respond directly as a helpful assistant
-        2. Use "I" and "you" language, not third person
-        3. Only discuss the research chapter content when relevant
-        4. Keep responses concise and helpful
-        5. If asked about the research, use only the chapter content provided above
-        6. Do not rely on any older data dump once a new DOCX file is uploaded
-        7. Respond naturally to general conversation too
-
-Respond directly to the user's message:`;
-
-        // Call AI service
-        const response = await fetch("/api/chat", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ prompt: prompt })
-        });
+        // Call AI service with memory (messages) + compact chapter context.
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 45000);
+        let response;
+        try {
+            response = await fetch("/api/chat", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    messages: history,
+                    chapter: scopeMetadata.dataDump
+                }),
+                signal: controller.signal
+            });
+        } catch (err) {
+            clearTimeout(timeout);
+            if (err.name === 'AbortError') {
+                throw new Error('The AI service took too long to respond. Please try again.');
+            }
+            throw err;
+        }
+        clearTimeout(timeout);
 
         if (!response.ok) {
             const errorData = await response.json();
