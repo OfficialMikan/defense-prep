@@ -39,13 +39,14 @@ const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
 
 // Hard cap on how long we are willing to wait across all retries/fallbacks.
 // This prevents a rate-limited request from appearing "stuck" for 30+ seconds.
-const MAX_TOTAL_RETRY_MS = 9000;
+const MAX_TOTAL_RETRY_MS = 6000;
 
 // Keep the chapter context bounded so we don't blow the token budget / TPM.
 const MAX_CHAPTER_CHARS = 12000;
 
 // Per-call timeout for the Groq request (aborts so the client never hangs).
-const REQUEST_TIMEOUT_MS = 30000;
+// Kept well under the client-side cap so the UI gets a clear error fast.
+const REQUEST_TIMEOUT_MS = 20000;
 
 function truncate(str, max) {
     if (typeof str !== 'string') return '';

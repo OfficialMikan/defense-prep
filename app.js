@@ -7,8 +7,8 @@ window.addEventListener('load', () => {
     setTimeout(() => {
         const loader = document.getElementById('intro-loader');
         loader.style.opacity = '0';
-        setTimeout(() => loader.style.visibility = 'hidden', 500);
-    }, 2500);
+        setTimeout(() => loader.style.visibility = 'hidden', 400);
+    }, 900);
 });
 
 // Sidebar Toggle Logic
@@ -633,22 +633,65 @@ async function ensureChapterContent() {
     return scope;
 }
 
+// Inline, non-blocking spinner state for the "Generate Flashcard" button.
+// Replaces the old full-screen overlay so the app never feels "stuck".
+function setGenerateButtonBusy(busy, statusText) {
+    const btn = document.querySelector('.btn-generate-large');
+    if (!btn) return;
+    if (busy) {
+        if (!btn.dataset.origLabel) btn.dataset.origLabel = btn.innerHTML;
+        btn.classList.add('is-loading');
+        btn.setAttribute('disabled', 'disabled');
+        btn.innerHTML = '<span class="btn-spinner" aria-hidden="true"></span>' +
+            '<span class="btn-label">' + (statusText || 'Generating...') + '</span>';
+    } else {
+        btn.classList.remove('is-loading');
+        btn.removeAttribute('disabled');
+        if (btn.dataset.origLabel) {
+            btn.innerHTML = btn.dataset.origLabel;
+            delete btn.dataset.origLabel;
+        }
+    }
+}
+
+// Live status text shown just below the button while generating.
+function setGenerateStatus(text) {
+    let el = document.getElementById('generate-status');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'generate-status';
+        el.className = 'generate-status';
+        const btn = document.querySelector('.btn-generate-large');
+        if (btn && btn.parentElement) {
+            btn.parentElement.insertBefore(el, btn.nextSibling);
+        }
+    }
+    el.textContent = text || '';
+    el.style.display = text ? 'block' : 'none';
+}
+
+let activeGenerationController = null;
+
 async function triggerInterrogation() {
     // 1. Check if history limit reached
     if (generatedCardsCollection.length >= MAX_HISTORY_SIZE) {
-        alert(`Your lesson history is getting very full! Please Reset Levels to keep performance fast.Maximum ${MAX_HISTORY_SIZE} items allowed.`);
+        alert('Your lesson history is getting very full! Please Reset Levels to keep performance fast. Maximum ' + MAX_HISTORY_SIZE + ' items allowed.');
         return;
     }
 
-    const screenOverlayLoader = document.getElementById('loader');
-    screenOverlayLoader.style.display = 'flex';
+    // Prevent double-clicks and give instant, non-blocking feedback.
+    const btn = document.querySelector('.btn-generate-large');
+    if (btn && btn.classList.contains('is-loading')) return;
+    setGenerateButtonBusy(true, 'Thinking...');
+    setGenerateStatus('Asking the AI panel...');
 
     // 2. Prepare the prompt with difficulty and component
     let scopeMetadata;
     try {
         scopeMetadata = await ensureChapterContent();
     } catch (e) {
-        screenOverlayLoader.style.display = 'none';
+        setGenerateButtonBusy(false);
+        setGenerateStatus('');
         showErrorModal(e.message);
         return;
     }
@@ -712,63 +755,72 @@ CRITICAL EXECUTION PROTOCOLS:
 RESEARCH PROPOSAL:
 ${scopeMetadata.dataDump || "No research data available."}
 
-                    Now, as a panelist, ${randomAngle}.${difficultyPrompt} ${componentPrompt} Base your question and the researchers' answer (in third person plural 'The researchers...') ONLY on information found in the proposal above.Provide the question and answer in JSON format: { "question": "...", "answer": "..." } `;
+Now, as a panelist, ${randomAngle}.${difficultyPrompt} ${componentPrompt} Base your question and the researchers' answer (in third person plural 'The researchers...') ONLY on information found in the proposal above.Provide the question and answer in JSON format: { "question": "...", "answer": "..." } `;
 
     let structuredData = null;
     let generationError = null;
     const MAX_GENERATION_ATTEMPTS = 3;
     for (let attempt = 0; attempt < MAX_GENERATION_ATTEMPTS; attempt++) {
-        const seed = Date.now() + attempt;
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 45000);
-        let response;
         try {
-            response = await fetch("/api/chat", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ prompt: instructionPrompt, json: true, seed }),
-                signal: controller.signal
-            });
-        } catch (err) {
+            const seed = Date.now() + attempt;
+            const controller = new AbortController();
+            // Fail-fast client cap: 15s. If the request exceeds this the user
+            // gets a clear error instantly instead of an endless spinner.
+            const timeout = setTimeout(() => controller.abort(), 15000);
+            let response;
+            try {
+                response = await fetch("/api/chat", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ prompt: instructionPrompt, json: true, seed }),
+                    signal: controller.signal
+                });
+            } catch (err) {
+                clearTimeout(timeout);
+                if (err.name === 'AbortError') {
+                    throw new Error('The AI service took too long to respond. Please try again.');
+                }
+                throw err;
+            }
             clearTimeout(timeout);
-            if (err.name === 'AbortError') {
-                throw new Error('The AI service took too long to respond. Please try again.');
+
+            if (!response.ok) {
+                const errBody = await response.json().catch(() => ({}));
+                throw new Error(`${errBody.error || ('Server error ' + response.status)}`);
             }
-            throw err;
-        }
-        clearTimeout(timeout);
 
-        if (!response.ok) {
-            const errBody = await response.json().catch(() => ({}));
-            throw new Error(`${errBody.error || ('Server error ' + response.status)}`);
-        }
+            const parsedPackage = await response.json();
 
-        const parsedPackage = await response.json();
-
-        let candidate;
-        try {
-            candidate = JSON.parse(parsedPackage.choices[0].message.content);
-        } catch (parseError) {
-            const content = parsedPackage.choices[0].message.content;
-            const jsonMatch = content.match(/\{.*\}/s);
-            if (jsonMatch) {
-                candidate = JSON.parse(jsonMatch[0]);
-            } else {
-                throw new Error("Could not extract valid JSON from AI response");
+            let candidate;
+            try {
+                candidate = JSON.parse(parsedPackage.choices[0].message.content);
+            } catch (parseError) {
+                const content = parsedPackage.choices[0].message.content;
+                const jsonMatch = content.match(/\{.*\}/s);
+                if (jsonMatch) {
+                    candidate = JSON.parse(jsonMatch[0]);
+                } else {
+                    throw new Error("Could not extract valid JSON from AI response");
+                }
             }
-        }
 
-        if (!candidate.question || !candidate.answer) {
-            throw new Error("AI response missing question or answer");
-        }
+            if (!candidate.question || !candidate.answer) {
+                throw new Error("AI response missing question or answer");
+            }
 
-        // Reject near-duplicate questions so consecutive generations stay fresh.
-        if (!isNearDuplicateQuestion(candidate.question)) {
-            structuredData = candidate;
-            rememberRecentQuestion(candidate.question);
-            break;
+            // Reject near-duplicate questions so consecutive generations stay fresh.
+            if (!isNearDuplicateQuestion(candidate.question)) {
+                structuredData = candidate;
+                rememberRecentQuestion(candidate.question);
+                break;
+            }
+            dbgLog('triggerInterrogation', `Attempt ${attempt + 1} produced a near-duplicate question; regenerating...`);
+        } catch (error) {
+            // Capture the error and try the next attempt instead of letting the
+            // whole function throw (which would leave the button stuck loading).
+            generationError = error;
+            dbgError('triggerInterrogation', 'AI generation failed on attempt ' + (attempt + 1), error);
         }
-        dbgLog('triggerInterrogation', `Attempt ${attempt + 1} produced a near-duplicate question; regenerating...`);
     } // end for loop
 
     if (!generationError && !structuredData && recentQuestions.length) {
@@ -777,7 +829,8 @@ ${scopeMetadata.dataDump || "No research data available."}
     }
 
     if (!structuredData) {
-        screenOverlayLoader.style.display = 'none';
+        setGenerateButtonBusy(false);
+        setGenerateStatus('');
         showErrorModal(generationError && generationError.message
             ? generationError.message
             : 'The AI service is currently unavailable. Please try again later.');
