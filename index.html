@@ -2054,6 +2054,17 @@
             }
         }
 
+        // Simple debug logger for the browser side.
+        // Enable verbose logs by opening the console and running: localStorage.setItem('debug', '1')
+        const dbgLog = (tag, ...args) => {
+            if (localStorage.getItem('debug') === '1') {
+                console.log(`%c[${tag}]`, 'color:#00c8ff;font-weight:bold', ...args);
+            }
+        };
+        const dbgError = (tag, ...args) => {
+            console.error(`[${tag}]`, ...args);
+        };
+
         const chapterUploadState = {
             activeChapter: 1,
             chapters: {}
@@ -2566,16 +2577,22 @@
         // selected chapter has no file content, so the AI is never asked to improvise.
         async function ensureChapterContent() {
             const activeChapter = chapterUploadState.activeChapter;
+            dbgLog('ensureChapterContent', 'Checking chapter', activeChapter,
+                'loaded chapters:', Object.keys(chapterUploadState.chapters || {}));
             if (!chapterUploadState.chapters || Object.keys(chapterUploadState.chapters).length === 0) {
+                dbgLog('ensureChapterContent', 'No chapters cached, loading from folder...');
                 await loadChapterFilesFromFolder();
             }
             const scope = getChapterScope(activeChapter);
+            dbgLog('ensureChapterContent', 'Chapter', activeChapter,
+                'dataDump length:', scope.dataDump ? scope.dataDump.length : 0);
             if (!scope.dataDump) {
-                throw new Error(
+                const errMsg =
                     `No chapter content found for Chapter ${activeChapter}. Please add ` +
                     `/data/chapters/chapter-${activeChapter}.txt (or .docx) and refresh, ` +
-                    `then select a chapter that has an uploaded file.`
-                );
+                    `then select a chapter that has an uploaded file.`;
+                dbgError('ensureChapterContent', errMsg);
+                throw new Error(errMsg);
             }
             return scope;
         }

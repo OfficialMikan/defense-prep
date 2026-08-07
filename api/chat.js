@@ -1,30 +1,48 @@
 // /api/chat.js
-export default async function handler(req, res) {
+// CommonJS export so it works on Vercel serverless (Node runtime) regardless
+// of whether package.json declares "type": "module".
+//
+// Debugging: set DEBUG=true in the environment for verbose logs, or leave it
+// off for concise lifecycle/error logs. All logging goes through api/debug.js.
+
+const dbg = require('./debug');
+
+module.exports = async function handler(req, res) {
+    const scope = 'api/chat';
+    dbg.log(scope, 'Handler invoked');
+
     if (req.method !== 'POST') {
+        dbg.error(scope, `Method not allowed: ${req.method}, expected POST`);
         return res.status(405).json({ error: "Method not allowed" });
     }
+    dbg.debug(scope, 'Method OK: POST');
 
     try {
         // Guard against a missing/empty request body so we never crash.
         const body = req.body && typeof req.body === 'object' ? req.body : {};
         const { prompt, json } = body;
+        dbg.debug(scope, 'Request body received', dbg.summarizeBody(body));
 
         // The user message (prompt) is required — it carries the chapter data.
         if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
+            dbg.error(scope, 'Rejecting request: missing prompt');
             return res.status(400).json({ error: "Missing required field: prompt" });
         }
+        dbg.debug(scope, 'prompt present, length =', prompt.length);
 
         // Flashcard generation requests JSON output; chatbot requests plain text.
         const wantsJsonOut = json === true;
+        dbg.debug(scope, 'wantsJsonOut =', wantsJsonOut);
 
         // Validate API key exists
         if (!process.env.GROQ_API_KEY) {
-            console.error("GROQ_API_KEY not found in environment variables");
+            dbg.error(scope, "GROQ_API_KEY not found in environment variables");
             return res.status(500).json({
                 error: "Server configuration error",
                 details: "API key not configured"
             });
         }
+        dbg.debug(scope, 'GROQ_API_KEY is configured (length =', (process.env.GROQ_API_KEY || '').length + ')');
 
         console.log("Making request to Groq API with model: llama-3.3-70b-versatile");
 
@@ -51,7 +69,9 @@ STRICT RULES:
             { role: "user", content: prompt }
         ];
 
-        const body = {
+        // NOTE: This is the Groq request payload. It is intentionally named
+        // `groqPayload` (NOT `body`) to avoid clashing with the request body.
+        const groqPayload = {
             model: "llama-3.3-70b-versatile",
             messages: messages,
             // Higher temperature ensures flashcard questions vary (avoids repeats).
@@ -62,8 +82,10 @@ STRICT RULES:
 
         // Use Groq's native structured output for flashcard generation.
         if (wantsJsonOut) {
-            body.response_format = { type: "json_object" };
+            groqPayload.response_format = { type: "json_object" };
         }
+
+        dbg.debug(scope, 'Sending to Groq payload keys =', Object.keys(groqPayload));
 
         const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
             method: "POST",
@@ -71,14 +93,16 @@ STRICT RULES:
                 "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
                 "Content-Type": "application/json"
             },
-            body: JSON.stringify(body)
+            body: JSON.stringify(groqPayload)
         });
 
         console.log("Groq API response status:", response.status);
+        dbg.debug(scope, 'Groq response status =', response.status);
 
         if (!response.ok) {
             const errorText = await response.text();
             console.error("Groq API Error:", response.status, errorText);
+            dbg.error(scope, `Groq API error status=${response.status} body=${dbg.summarizeBody(errorText)}`);
             return res.status(response.status).json({
                 error: "AI service error",
                 details: errorText,
@@ -88,13 +112,17 @@ STRICT RULES:
 
         const data = await response.json();
         console.log("Successfully received response from Groq API");
+        dbg.debug(scope, 'Groq response received, choices =', data.choices ? data.choices.length : 0);
         return res.status(200).json(data);
 
     } catch (error) {
         console.error("API Handler Error:", error);
+        dbg.error(scope, error);
         return res.status(500).json({
             error: "Failed to communicate with AI service",
             details: error.message
         });
+    } finally {
+        dbg.log(scope, 'Handler finished');
     }
-}
+};
