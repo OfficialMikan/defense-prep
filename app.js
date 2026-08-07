@@ -719,54 +719,68 @@ ${scopeMetadata.dataDump || "No research data available."}
     const MAX_GENERATION_ATTEMPTS = 3;
     for (let attempt = 0; attempt < MAX_GENERATION_ATTEMPTS; attempt++) {
         const seed = Date.now() + attempt;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 45000);
+        let response;
         try {
-            const response = await fetch("/api/chat", {
+            response = await fetch("/api/chat", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ prompt: instructionPrompt, json: true, seed })
+                body: JSON.stringify({ prompt: instructionPrompt, json: true, seed }),
+                signal: controller.signal
             });
-
-            if (!response.ok) {
-                const errBody = await response.json().catch(() => ({}));
-                throw new Error(`${errBody.error || ('Server error ' + response.status)}`);
+        } catch (err) {
+            clearTimeout(timeout);
+            if (err.name === 'AbortError') {
+                throw new Error('The AI service took too long to respond. Please try again.');
             }
-
-            const parsedPackage = await response.json();
-
-            let candidate;
-            try {
-                candidate = JSON.parse(parsedPackage.choices[0].message.content);
-            } catch (parseError) {
-                const content = parsedPackage.choices[0].message.content;
-                const jsonMatch = content.match(/\{.*\}/s);
-                if (jsonMatch) {
-                    candidate = JSON.parse(jsonMatch[0]);
-                } else {
-                    throw new Error("Could not extract valid JSON from AI response");
-                }
-            }
-
-            if (!candidate.question || !candidate.answer) {
-                throw new Error("AI response missing question or answer");
-            }
-
-            // Reject near-duplicate questions so consecutive generations stay fresh.
-            if (!isNearDuplicateQuestion(candidate.question)) {
-                structuredData = candidate;
-                rememberRecentQuestion(candidate.question);
-                break;
-            }
-            dbgLog('triggerInterrogation', `Attempt ${attempt + 1} produced a near-duplicate question; regenerating...`);
-
-        } catch (error) {
-            generationError = error;
-            dbgError('triggerInterrogation', 'AI generation failed on attempt ' + (attempt + 1), error);
+            throw err;
         }
+        clearTimeout(timeout);
+
+        if (!response.ok) {
+            const errBody = await response.json().catch(() => ({}));
+            throw new Error(`${errBody.error || ('Server error ' + response.status)}`);
+        }
+
+        const parsedPackage = await response.json();
+
+        let candidate;
+        try {
+            candidate = JSON.parse(parsedPackage.choices[0].message.content);
+        } catch (parseError) {
+            const content = parsedPackage.choices[0].message.content;
+            const jsonMatch = content.match(/\{.*\}/s);
+            if (jsonMatch) {
+                candidate = JSON.parse(jsonMatch[0]);
+            } else {
+                throw new Error("Could not extract valid JSON from AI response");
+            }
+        }
+
+        if (!candidate.question || !candidate.answer) {
+            throw new Error("AI response missing question or answer");
+        }
+
+        // Reject near-duplicate questions so consecutive generations stay fresh.
+        if (!isNearDuplicateQuestion(candidate.question)) {
+            structuredData = candidate;
+            rememberRecentQuestion(candidate.question);
+            break;
+        }
+        dbgLog('triggerInterrogation', `Attempt ${attempt + 1} produced a near-duplicate question; regenerating...`);
+    } // end for loop
+
+    if (!generationError && !structuredData && recentQuestions.length) {
+        // Ensure any unexpected error also surfaces as a user-friendly message.
+        dbgLog('triggerInterrogation', 'No structured data generated after all attempts');
     }
 
     if (!structuredData) {
         screenOverlayLoader.style.display = 'none';
-        showErrorModal('The AI service is currently unavailable. Please try again later.');
+        showErrorModal(generationError && generationError.message
+            ? generationError.message
+            : 'The AI service is currently unavailable. Please try again later.');
         return;
     }
 

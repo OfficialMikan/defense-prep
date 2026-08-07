@@ -26,13 +26,13 @@
 const dbg = require('./debug');
 
 // Model selection -----------------------------------------------------------
-// Primary models default to llama-3.3-70b-versatile (good JSON + reasoning).
-// Fallback models are faster/cheaper (llama-3.1-8b-instant) and are used when
-// the primary model exhausts its retries (e.g. rate-limited), so requests still
-// succeed instead of failing with the generic error modal.
-const FLASHCARD_MODEL = process.env.GROQ_FLASHCARD_MODEL || 'llama-3.3-70b-versatile';
+// FLASHCARDS are generated with the FAST/instant model by default so the card
+// appears quickly (good enough for a single question/answer JSON pair).
+// CHATBOT uses the larger llama-3.3-70b-versatile for better reasoning, with a
+// fast fallback (llama-3.1-8b-instant) when the primary is rate-limited.
+const FLASHCARD_MODEL = process.env.GROQ_FLASHCARD_MODEL || 'llama-3.1-8b-instant';
 const CHATBOT_MODEL = process.env.GROQ_CHATBOT_MODEL || 'llama-3.3-70b-versatile';
-const FLASHCARD_FALLBACK_MODEL = process.env.GROQ_FLASHCARD_FALLBACK_MODEL || 'llama-3.1-8b-instant';
+const FLASHCARD_FALLBACK_MODEL = process.env.GROQ_FLASHCARD_FALLBACK_MODEL || 'llama-3.3-70b-versatile';
 const CHATBOT_FALLBACK_MODEL = process.env.GROQ_CHATBOT_FALLBACK_MODEL || 'llama-3.1-8b-instant';
 
 const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
@@ -66,7 +66,7 @@ async function callGroq({ model, messages, wantsJsonOut, seed, maxTokens }) {
         model,
         messages,
         temperature: wantsJsonOut ? 0.9 : 0.7,
-        max_tokens: maxTokens || (wantsJsonOut ? 700 : 600)
+        max_tokens: maxTokens || (wantsJsonOut ? 400 : 600)
     };
     if (wantsJsonOut) {
         payload.response_format = { type: 'json_object' };
