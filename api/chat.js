@@ -26,14 +26,14 @@
 const dbg = require('./debug');
 
 // Model selection -----------------------------------------------------------
-// FLASHCARDS are generated with the FAST/instant model by default so the card
-// appears quickly (good enough for a single question/answer JSON pair).
-// CHATBOT uses the larger llama-3.3-70b-versatile for better reasoning, with a
-// fast fallback (llama-3.1-8b-instant) when the primary is rate-limited.
+// FAST-first strategy: use llama-3.1-8b-instant for BOTH flashcards and the
+// chatbot. The 8B model is ~8x cheaper on tokens than the 70B model, which
+// avoids blowing the Groq free-tier TPM budget (12k/min) after 1–2 calls.
+// The larger model is kept only as an optional env-var override.
 const FLASHCARD_MODEL = process.env.GROQ_FLASHCARD_MODEL || 'llama-3.1-8b-instant';
-const CHATBOT_MODEL = process.env.GROQ_CHATBOT_MODEL || 'llama-3.3-70b-versatile';
+const CHATBOT_MODEL = process.env.GROQ_CHATBOT_MODEL || 'llama-3.1-8b-instant';
 const FLASHCARD_FALLBACK_MODEL = process.env.GROQ_FLASHCARD_FALLBACK_MODEL || 'llama-3.3-70b-versatile';
-const CHATBOT_FALLBACK_MODEL = process.env.GROQ_CHATBOT_FALLBACK_MODEL || 'llama-3.1-8b-instant';
+const CHATBOT_FALLBACK_MODEL = process.env.GROQ_CHATBOT_FALLBACK_MODEL || 'llama-3.3-70b-versatile';
 
 const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
 
@@ -42,7 +42,13 @@ const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
 const MAX_TOTAL_RETRY_MS = 6000;
 
 // Keep the chapter context bounded so we don't blow the token budget / TPM.
-const MAX_CHAPTER_CHARS = 12000;
+// 6000 characters is roughly ~1.5k tokens of input — plenty for a chapter
+// summary while leaving most of the 12k TPM for the model output.
+const MAX_CHAPTER_CHARS = 6000;
+
+// Cap on the flashcard prompt (which embeds chapter context). Truncating it
+// server-side prevents a huge untruncated dataDump from eating the TPM budget.
+const MAX_FLASHCARD_PROMPT_CHARS = 8000;
 
 // Per-call timeout for the Groq request (aborts so the client never hangs).
 // Kept well under the client-side cap so the UI gets a clear error fast.
@@ -67,7 +73,7 @@ async function callGroq({ model, messages, wantsJsonOut, seed, maxTokens }) {
         model,
         messages,
         temperature: wantsJsonOut ? 0.9 : 0.7,
-        max_tokens: maxTokens || (wantsJsonOut ? 400 : 600)
+        max_tokens: maxTokens || (wantsJsonOut ? 280 : 400)
     };
     if (wantsJsonOut) {
         payload.response_format = { type: 'json_object' };
@@ -211,9 +217,12 @@ module.exports = async function handler(req, res) {
                 dbg.error(scope, 'Rejecting request: missing prompt');
                 return res.status(400).json({ error: 'Missing required field: prompt' });
             }
+            // Truncate the flashcard prompt server-side so a huge dataDump
+            // never blasts the whole chapter into input tokens (TPM).
+            const truncatedPrompt = truncate(prompt, MAX_FLASHCARD_PROMPT_CHARS);
             modelMessages = [
                 { role: 'system', content: systemPrompt },
-                { role: 'user', content: prompt }
+                { role: 'user', content: truncatedPrompt }
             ];
         } else {
             // Chatbot: messages is an array of prior turns (has memory).

@@ -1,21 +1,28 @@
-# Defense Prep — Improvement Plan
+# Defense Prep — Rate-Limit & Speed Optimization
 
-## Tasks
-- [x] **Fix JS syntax** in index.html (Chapter 1 & 2 `dataDump` template-literal delimiters)
-- [x] **Add duplicate-question guard** in `triggerInterrogation` (regeneration loop, up to 3 attempts)
-- [x] **Label generated cards** with the chapter title instead of generic "AI Research"
-- [x] **api/chat.js**: Remove Gemini fallback; Groq is the only AI provider (with retry on 429/5xx)
-- [x] **api/chat.js**: Success response returns only OpenAI-shaped `choices` — no provider/model leaked to the client
-- [x] **api/chat.js**: Errors return a generic, user-safe message ("The AI service is currently unavailable…") — no "Groq"/model details leaked
-- [x] **index.html**: Chapter panel shows PDF preview instead of text summary/overview
-- [x] **index.html**: Keep `.txt` files as the data dump for chatbot + flashcards (no fallback; errors if missing)
-- [x] **index.html / app.js**: Generic AI-error modal (`#error-modal-overlay` + `showErrorModal`) used for both flashcard generation and chatbot failures (no raw `alert()` of AI details)
-- [x] **index.html / app.js**: Splitting into separate `styles.css` + `app.js` + minimal `index.html` (already external — verified, no inline styles/scripts)
-- [x] **app.js**: Chapter/component dropdowns re-populated after `loadChapterFilesFromFolder()` completes (no full reload needed)
-- [x] **Decision**: Chapters 3–5 remain **unavailable** (no auto-detect) — they will be added later
-- [x] **index.html**: Keep the confirmation "Reset All" modal untouched
-- [x] **Verify** JS syntax for both index.html and api/chat.js (both pass)
+## Goal
+Make generation instant/fast and eliminate the 429 "AI unavailable" errors that appear after ~2 generations.
+
+## Root cause
+- Groq free org-level TPM limit of 12,000 is being exhausted after ~2 generations.
+- Chatbot used `llama-3.3-70b-versatile` (70B) which consumes ~8x more tokens than the 8B fast model.
+- Both paths re-send large chapter context; the flashcard path sends the FULL untruncated `dataDump`.
+- Output `max_tokens` were high (400/600).
+
+## Completed
+- [x] **api/chat.js**: Use `llama-3.1-8b-instant` as the default for BOTH flashcard and chatbot (fast, ~8x cheaper). Keep 70b only as an env-var override.
+- [x] **api/chat.js**: Truncate the flashcard prompt server-side (cap chars) so the full chapter isn't blasted into input tokens (`MAX_FLASHCARD_PROMPT_CHARS`).
+- [x] **api/chat.js**: Lower chatbot `MAX_CHAPTER_CHARS` to ~6000.
+- [x] **api/chat.js**: Reduce output `max_tokens` (flashcard ~280, chatbot ~400).
+- [x] **api/chat.js**: Add automatic fallback to a faster/cheaper model when primary is rate-limited, plus a capped total retry wait and per-request timeout so the client never "hangs".
+- [x] **app.js**: Don't embed the full chapter `dataDump` in the flashcard `prompt`; truncate to `MAX_FLASHCARD_DUMP_CHARS` (8000). For the chatbot, pass `messages` (memory) + `chapter` separately so the chapter isn't re-sent every turn.
+- [x] **app.js**: Add a short cooldown between generations (`GENERATION_COOLDOWN_MS` = 8s) that disables the button and shows a "warming up" message.
+- [x] **app.js**: Show a clearer "warming up / rate limit" message on 429 instead of the generic "unavailable".
+- [x] **app.js**: Add client-side AbortController timeouts (flashcard 15s, chatbot 45s) so a slow request shows a clear error instead of an endless spinner.
+- [x] **app.js**: Improve UX with an inline loading state on the Generate button and an opaque cover over the flashcard while generating.
+- [x] **app.js**: Re-populate chapter/component dropdowns after the folder scan completes.
+- [x] Verified JS syntax for `app.js`, `api/chat.js`, and `api/debug.js` (all pass).
 
 ## Follow-up
-- Set `GROQ_API_KEY` and test "Generate Flashcard" + chatbot against the `.txt` data dumps
-- **Observed in Vercel logs**: Groq is returning `429` rate-limit errors (TPM limit 12000 exceeded, "try again in ~22–33s"). The current server retry backoff (`800ms` × attempt) is too short to out-wait these. If flashcard/chatbot errors persist, consider increasing the retry backoff / adding exponential wait, or upgrading the Groq service tier.
+- Deploy and verify that generation no longer hits 429 after repeated uses.
+- Set `GROQ_API_KEY` and test "Generate Flashcard" + chatbot against the `.txt` data dumps.

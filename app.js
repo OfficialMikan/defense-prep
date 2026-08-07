@@ -143,6 +143,26 @@ function rememberRecentQuestion(question) {
 // Increase storage limit
 const MAX_HISTORY_SIZE = 100;
 
+// Bound the chapter context sent to the AI so we don't blow the token budget.
+// The full chapter is retained in memory (chapterUploadState.chapters) but only
+// a truncated slice is embedded into the flashcard prompt / network payload.
+const MAX_FLASHCARD_DUMP_CHARS = 8000;
+
+// Cooldown (ms) between flashcard generations. Prevents back-to-back requests
+// from exhausting the Groq free-tier TPM budget and hitting 429s.
+const GENERATION_COOLDOWN_MS = 8000;
+let lastGenerationAt = 0;
+
+function truncateDump(text, max) {
+    const s = String(text || '');
+    if (s.length <= max) return s;
+    // Try to cut at a sentence boundary near the limit for a cleaner prompt.
+    const cut = s.slice(0, max);
+    const lastStop = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('.'));
+    if (lastStop > max * 0.6) return cut.slice(0, lastStop + 1) + ' [truncated]';
+    return cut + ' [truncated]';
+}
+
 try {
     const preservedCollection = localStorage.getItem('mcesi_sim_history');
     if (preservedCollection) {
@@ -676,6 +696,16 @@ async function triggerInterrogation() {
     const btn = document.querySelector('.btn-generate-large');
     if (btn && btn.classList.contains('is-loading')) return;
 
+    // Cooldown between generations to protect the Groq TPM budget. If the user
+    // clicks too soon, show a friendly "warming up" message instead of firing
+    // another request that would likely hit a 429.
+    const elapsed = Date.now() - lastGenerationAt;
+    if (lastGenerationAt > 0 && elapsed < GENERATION_COOLDOWN_MS) {
+        const waitSec = Math.ceil((GENERATION_COOLDOWN_MS - elapsed) / 1000);
+        showErrorModal('The AI is warming up. Please wait about ' + waitSec + ' second(s) before generating another flashcard.');
+        return;
+    }
+
     // Show "Thinking..." on the button and an opaque cover over the flashcard.
     setGenerateButtonBusy(true, 'Thinking...');
     setCardCover(true);
@@ -690,6 +720,10 @@ async function triggerInterrogation() {
         showErrorModal(e.message);
         return;
     }
+
+    // Use a truncated slice of the chapter for the flashcard prompt so a huge
+    // dataDump doesn't inflate the network payload and input token count.
+    const compactDump = truncateDump(scopeMetadata.dataDump, MAX_FLASHCARD_DUMP_CHARS);
 
     // Randomly rotate question angles so consecutive generations stay varied.
     const questionAngles = [
@@ -748,7 +782,7 @@ CRITICAL EXECUTION PROTOCOLS:
         9. UNIQUENESS: Generate a fresh, distinct question / answer pair each time.Vary the focus and wording; never repeat the same generic phrasing across generations.
 
 RESEARCH PROPOSAL:
-${scopeMetadata.dataDump || "No research data available."}
+${compactDump || "No research data available."}
 
 Now, as a panelist, ${randomAngle}.${difficultyPrompt} ${componentPrompt} Base your question and the researchers' answer (in third person plural 'The researchers...') ONLY on information found in the proposal above.Provide the question and answer in JSON format: { "question": "...", "answer": "..." } `;
 
@@ -845,6 +879,10 @@ Now, as a panelist, ${randomAngle}.${difficultyPrompt} ${componentPrompt} Base y
 
     executionPointerIndex = generatedCardsCollection.length - 1;
     localStorage.setItem('mcesi_sim_history', JSON.stringify(generatedCardsCollection));
+
+    // Record the completion time so the cooldown gate above prevents rapid
+    // back-to-back generations that would trigger Groq 429 rate limits.
+    lastGenerationAt = Date.now();
 
     // Restore the button label and remove the flashcard cover now that the
     // new card is ready to show.

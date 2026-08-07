@@ -957,6 +957,33 @@ body {
     justify-content: center;
 }
 
+.btn-generate-large.is-loading {
+    cursor: wait;
+    opacity: 0.85;
+}
+
+.btn-generate-large .btn-spinner {
+    width: 18px;
+    height: 18px;
+    border: 3px solid rgba(255, 255, 255, 0.35);
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    display: inline-block;
+    animation: btn-spin 0.7s linear infinite;
+    margin-right: 8px;
+    flex: 0 0 auto;
+}
+
+.btn-generate-large .btn-label {
+    display: inline-block;
+}
+
+@keyframes btn-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 .btn-proposal:active {
     border-bottom-width: 0px;
     transform: translateY(4px);
