@@ -180,6 +180,10 @@ window.addEventListener('DOMContentLoaded', () => {
     populateChapterDropdown();
     populateComponentDropdown();
     loadChapterFilesFromFolder().finally(() => {
+        // Re-populate the dropdowns after the folder scan so any newly loaded
+        // chapters are reflected in the UI without needing a full reload.
+        populateChapterDropdown();
+        populateComponentDropdown();
         populateChapterPreview();
     });
 
@@ -782,6 +786,9 @@ ${scopeMetadata.dataDump || "No research data available."}
 
     renderHistoryPanelUI();
     syncCardDisplaySurface();
+    if (typeof trackEvent === 'function') {
+        trackEvent('flashcard', { chapter: scopeMetadata.title, difficulty: currentDifficulty, component: currentComponent });
+    }
 }
 
 
@@ -932,6 +939,43 @@ function showErrorModal(message) {
 function closeErrorModal() {
     const overlay = document.getElementById('error-modal-overlay');
     if (overlay) overlay.style.display = 'none';
+}
+
+// Text-to-speech: read the current card's question (front) or answer (back) aloud.
+function speakCard(event, side) {
+    event.stopPropagation();
+    if (executionPointerIndex === -1) {
+        alert('Generate a flashcard first before reading it aloud.');
+        return;
+    }
+    if (!('speechSynthesis' in window)) {
+        alert('Text-to-speech is not supported on this device.');
+        return;
+    }
+    const card = generatedCardsCollection[executionPointerIndex];
+    const text = side === 'back' ? card.answer : card.question;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    window.speechSynthesis.speak(utterance);
+}
+
+// Clear favorites only (keeps all other flashcards intact).
+function clearFavorites() {
+    const favoriteCount = generatedCardsCollection.filter((c) => c.favorite).length;
+    if (favoriteCount === 0) {
+        alert('No favorites to clear.');
+        return;
+    }
+    if (!confirm(`Remove favorite status from ${favoriteCount} flashcard(s)? The cards themselves will be kept.`)) {
+        return;
+    }
+    generatedCardsCollection.forEach((c) => { c.favorite = false; });
+    localStorage.setItem('mcesi_sim_history', JSON.stringify(generatedCardsCollection));
+    renderHistoryPanelUI();
+    updateFavoriteButton();
+    if (typeof trackEvent === 'function') trackEvent('clear_favorites', { count: favoriteCount });
 }
 
 function executeReset() {

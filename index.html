@@ -11,6 +11,32 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js"></script>
+    <script src="chapter-config.js"></script>
+    <script>
+        // Register service worker for offline support.
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').catch((err) => {
+                    console.warn('Service worker registration failed:', err);
+                });
+            });
+        }
+
+        // Lightweight analytics tracker (POSTs events to /api/analytics).
+        function trackEvent(type, data) {
+            try {
+                (navigator.sendBeacon && navigator.sendBeacon(
+                    '/api/analytics',
+                    new Blob([JSON.stringify({ type, data })], { type: 'application/json' })
+                )) || fetch('/api/analytics', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type, data }),
+                    keepalive: true
+                }).catch(() => { });
+            } catch (e) { /* analytics is best-effort */ }
+        }
+    </script>
 </head>
 
 <body>
@@ -108,6 +134,7 @@
             <ul class="history-list" id="historyList"></ul>
             <div class="sidebar-footer">
                 <button class="btn-clear" onclick="openModal()">Reset All</button>
+                <button class="btn-clear" onclick="clearFavorites()">Clear Favorites</button>
                 <button class="btn-export-pdf" onclick="exportToPDF()">Export to PDF</button>
             </div>
         </div>
@@ -155,6 +182,8 @@
                                 question about your research.</div>
                             <div class="card-hint">Click to check</div>
                             <div class="btn-actions">
+                                <button class="btn-action btn-tts-action" onclick="speakCard(event, 'front')"
+                                    aria-label="Read question aloud">🔊</button>
                                 <button class="btn-action btn-photo-action"
                                     onclick="captureAndSavePhoto(event)">📷</button>
                                 <button class="btn-action btn-copy-action"
@@ -169,6 +198,8 @@
                             <div class="card-text" id="backText">The researchers' defense answer will appear here.</div>
                             <div class="card-hint">Click to flip</div>
                             <div class="btn-actions">
+                                <button class="btn-action btn-tts-action" onclick="speakCard(event, 'back')"
+                                    aria-label="Read answer aloud">🔊</button>
                                 <button class="btn-action btn-photo-action"
                                     onclick="captureAndSavePhoto(event)">📷</button>
                                 <button class="btn-action btn-copy-action" onclick="copyText(event, 'back')">📋</button>

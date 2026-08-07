@@ -778,6 +778,12 @@ body {
     color: white;
 }
 
+.btn-tts-action {
+    background: var(--duo-teal);
+    border-bottom-color: var(--duo-teal-shadow);
+    color: white;
+}
+
 .btn-copy-action {
     background: var(--duo-blue);
     border-bottom-color: var(--duo-blue-shadow);

@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Defense Prep</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #f4f5f7;
+            color: #1f2937;
+            padding: 24px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 1.6rem;
+            margin-bottom: 4px;
+        }
+
+        .sub {
+            color: #6b7280;
+            margin-bottom: 24px;
+        }
+
+        .card {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+        }
+
+        .card h2 {
+            font-size: 1.1rem;
+            margin-bottom: 12px;
+        }
+
+        .login {
+            max-width: 360px;
+            margin: 80px auto;
+            text-align: center;
+        }
+
+        .login input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 1rem;
+        }
+
+        button {
+            background: #2563eb;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 18px;
+            font-size: 0.95rem;
+            cursor: pointer;
+        }
+
+        button.secondary {
+            background: #6b7280;
+        }
+
+        button.danger {
+            background: #dc2626;
+        }
+
+        .stats {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .stat {
+            flex: 1;
+            min-width: 120px;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .stat .num {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #2563eb;
+        }
+
+        .stat .label {
+            color: #6b7280;
+            font-size: 0.85rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        th,
+        td {
+            text-align: left;
+            padding: 8px 10px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        th {
+            background: #f9fafb;
+            color: #374151;
+        }
+
+        .msg {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #2563eb;
+        }
+
+        .msg.err {
+            color: #dc2626;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Login screen -->
+        <div id="loginScreen" class="card login">
+            <h1>🔐 Admin Panel</h1>
+            <p class="sub">Enter the admin password to view analytics.</p>
+            <input type="password" id="adminPass" placeholder="Admin password"
+                onkeydown="if(event.key==='Enter')doLogin()">
+            <br>
+            <button onclick="doLogin()">Login</button>
+            <div id="loginMsg" class="msg err"></div>
+        </div>
+
+        <!-- Dashboard -->
+        <div id="dashboard" style="display:none;">
+            <div class="toolbar">
+                <button onclick="logout()" class="secondary">Logout</button>
+                <button onclick="loadData()">Refresh</button>
+                <button onclick="clearData()" class="danger">Clear All Data</button>
+            </div>
+
+            <div class="card">
+                <h2>Overview</h2>
+                <div class="stats">
+                    <div class="stat">
+                        <div class="num" id="statTotal">0</div>
+                        <div class="label">Events</div>
+                    </div>
+                    <div class="stat">
+                        <div class="num" id="statChats">0</div>
+                        <div class="label">Chats</div>
+                    </div>
+                    <div class="stat">
+                        <div class="num" id="statCards">0</div>
+                        <div class="label">Flashcards</div>
+                    </div>
+                    <div class="stat">
+                        <div class="num" id="statDev">0</div>
+                        <div class="label">Device Types</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>By Device</h2>
+                <div id="byDevice"></div>
+            </div>
+
+            <div class="card">
+                <h2>By Type</h2>
+                <div id="byType"></div>
+            </div>
+
+            <div class="card">
+                <h2>By Chapter</h2>
+                <div id="byChapter"></div>
+            </div>
+
+            <div class="card">
+                <h2>Recent Events</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Type</th>
+                            <th>Device</th>
+                            <th>IP</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody id="eventsBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let adminToken = '';
+        const API = '/api/analytics';
+
+        async function api(path, options = {}) {
+            const headers = Object.assign({}, options.headers || {}, {
+                'Content-Type': 'application/json'
+            });
+            if (adminToken) headers['Authorization'] = 'Bearer ' + adminToken;
+            const res = await fetch(path, Object.assign({}, options, { headers }));
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error || 'Request failed');
+            }
+            return res.json();
+        }
+
+        function doLogin() {
+            const pass = document.getElementById('adminPass').value.trim();
+            if (!pass) { showLoginMsg('Enter a password.'); return; }
+            adminToken = pass;
+            loadData().then(() => {
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('dashboard').style.display = 'block';
+                showLoginMsg('');
+            }).catch((e) => {
+                adminToken = '';
+                showLoginMsg(e.message || 'Login failed.');
+            });
+        }
+
+        function showLoginMsg(text) {
+            const el = document.getElementById('loginMsg');
+            if (el) el.textContent = text;
+        }
+
+        function logout() {
+            adminToken = '';
+            document.getElementById('dashboard').style.display = 'none';
+            document.getElementById('loginScreen').style.display = 'block';
+            document.getElementById('adminPass').value = '';
+        }
+
+        async function loadData() {
+            const data = await api(API);
+            document.getElementById('statTotal').textContent = data.total || 0;
+            document.getElementById('statChats').textContent = (data.byType && data.byType.chat) || 0;
+            document.getElementById('statCards').textContent = (data.byType && data.byType.flashcard) || 0;
+            document.getElementById('statDev').textContent = data.byDevice ? Object.keys(data.byDevice).length : 0;
+
+            document.getElementById('byDevice').innerHTML = renderMap(data.byDevice);
+            document.getElementById('byType').innerHTML = renderMap(data.byType);
+            document.getElementById('byChapter').innerHTML = renderMap(data.byChapter);
+
+            const tbody = document.getElementById('eventsBody');
+            tbody.innerHTML = '';
+            (data.events || []).slice().reverse().forEach((ev) => {
+                const tr = document.createElement('tr');
+                const time = new Date(ev.timestamp).toLocaleString();
+                const details = ev.type === 'chat'
+                    ? (ev.snippet || ev.message || '')
+                    : (ev.chapter ? 'Chapter ' + ev.chapter : ev.component || '');
+                tr.innerHTML = `<td>${time}</td><td>${ev.type}</td><td>${ev.device}</td><td>${ev.ip}</td><td>${escapeHtml(details)}</td>`;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderMap(mapObj) {
+            if (!mapObj || Object.keys(mapObj).length === 0) {
+                return '<p style="color:#6b7280">No data yet.</p>';
+            }
+            return Object.entries(mapObj).map(([k, v]) =>
+                `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f0f0f0">
+                    <span>${escapeHtml(k)}</span><strong>${v}</strong>
+                </div>`).join('');
+        }
+
+        async function clearData() {
+            if (!confirm('Clear ALL analytics data? This cannot be undone.')) return;
+            await api(API, { method: 'DELETE' });
+            await loadData();
+        }
+
+        function escapeHtml(str) {
+            return String(str || '').replace(/[&<>"']/g, (c) => ({
+                '&': '&amp;', '<': '<', '>': '>', '"': '"', "'": '&#39;'
+            }[c]));
+        }
+    </script>
+</body>
+
+</html>
