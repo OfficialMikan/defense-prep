@@ -87,26 +87,57 @@ STRICT RULES:
 
         dbg.debug(scope, 'Sending to Groq payload keys =', Object.keys(groqPayload));
 
-        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(groqPayload)
-        });
+        // Retry parameters for transient Groq errors (429 = rate limit, 5xx = server hiccup).
+        const MAX_RETRIES = 2;
+        const RETRY_DELAY_MS = 800;
 
-        console.log("Groq API response status:", response.status);
-        dbg.debug(scope, 'Groq response status =', response.status);
+        let response = null;
+        let lastStatus = null;
+        let lastErrorText = '';
+
+        for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+            if (attempt > 0) {
+                const waitMs = RETRY_DELAY_MS * attempt; // 800ms, 1600ms
+                dbg.log(scope, `Retrying Groq request (attempt ${attempt + 1}/${MAX_RETRIES + 1}) after ${waitMs}ms`);
+                await new Promise((resolve) => setTimeout(resolve, waitMs));
+            }
+
+            response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(groqPayload)
+            });
+
+            console.log("Groq API response status:", response.status);
+            dbg.debug(scope, 'Groq response status =', response.status);
+
+            if (response.ok) {
+                break;
+            }
+
+            lastStatus = response.status;
+            lastErrorText = await response.text();
+            console.error("Groq API Error:", response.status, lastErrorText);
+            dbg.error(scope, `Groq API error status=${response.status} body=${dbg.summarizeBody(lastErrorText)}`);
+
+            // Only retry on rate-limit or server errors; never retry 4xx (bad request/auth).
+            const retryable = response.status === 429 || response.status >= 500;
+            if (!retryable) {
+                break;
+            }
+        }
 
         if (!response.ok) {
-            const errorText = await response.text();
-            console.error("Groq API Error:", response.status, errorText);
-            dbg.error(scope, `Groq API error status=${response.status} body=${dbg.summarizeBody(errorText)}`);
-            return res.status(response.status).json({
-                error: "AI service error",
-                details: errorText,
-                status: response.status
+            const friendlyMessage = lastStatus === 429
+                ? 'Too many requests. Please wait a moment and try again.'
+                : `AI service error (status ${lastStatus})`;
+            return res.status(lastStatus).json({
+                error: friendlyMessage,
+                details: lastErrorText,
+                status: lastStatus
             });
         }
 

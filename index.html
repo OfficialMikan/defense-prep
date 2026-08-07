@@ -2342,11 +2342,11 @@
             const clippedText = previewText.length > 1400 ? `${previewText.slice(0, 1400)}…` : previewText;
 
             return `
-            < div class="chapter-summary" >
+            <div class="chapter-summary">
                 <div class="chapter-summary-card">
                     <p>${clippedText}</p>
                 </div>
-                </div >
+            </div>
             `;
         }
 
@@ -2390,8 +2390,8 @@
                 }
 
                 content.innerHTML = `
-            < div class="chapter-preview-meta" > PDF preview</div >
-                    <iframe src="${pdfPath}" title="Chapter ${chapterNumber} PDF preview" style="width:100%; min-height: 70vh; border: 1px solid #ddd; border-radius: 12px;"></iframe>
+<div class="chapter-preview-meta">PDF preview</div>
+<iframe src="${pdfPath}" title="Chapter ${chapterNumber} PDF preview" style="width:100%; min-height: 70vh; border: 1px solid #ddd; border-radius: 12px;"></iframe>
                     <div class="chapter-preview-actions">
                         <a class="btn-proposal chapter-viewer-copy" href="${pdfPath}" target="_blank" rel="noopener">Open PDF</a>
                         <a class="btn-proposal chapter-viewer-copy" href="${docxPath}" target="_blank" rel="noopener">Open original DOCX</a>
@@ -2401,18 +2401,18 @@
                 if (previewText) {
                     content.dataset.rawText = previewText;
                     content.innerHTML += `
-            < div class="chapter-preview-meta" > Uploaded text</div >
-                <div class="chapter-preview-card">${previewText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')}</div>
-        `;
+<div class="chapter-preview-meta">Uploaded text</div>
+                <div class="chapter-preview-card">${previewText}</div>
+                `;
                 }
             } catch (error) {
                 content.dataset.rawText = scope.dataDump || '';
                 content.innerHTML = `
-            < div class="chapter-empty" > ${scope.dataDump || 'No chapter content is available yet.'}</div >
-                <div class="chapter-preview-actions">
-                    <a class="btn-proposal chapter-viewer-copy" href="${docxPath}" target="_blank" rel="noopener">Open source file</a>
-                </div>
-        `;
+                    <div class="chapter-empty">${scope.dataDump || 'No chapter content is available yet.'}</div>
+                    <div class="chapter-preview-actions">
+                        <a class="btn-proposal chapter-viewer-copy" href="${docxPath}" target="_blank" rel="noopener">Open source file</a>
+                    </div>
+                `;
             }
         }
 
@@ -2554,7 +2554,7 @@
                 btn.style.borderBottomWidth = '4px';
             });
 
-            const selectedBtn = document.querySelector(`.btn-${difficulty}`);
+            const selectedBtn = document.querySelector(`.btn - ${difficulty} `);
             if (selectedBtn) {
                 selectedBtn.style.opacity = '1';
                 selectedBtn.style.transform = 'translateY(2px)';
@@ -2588,8 +2588,8 @@
                 'dataDump length:', scope.dataDump ? scope.dataDump.length : 0);
             if (!scope.dataDump) {
                 const errMsg =
-                    `No chapter content found for Chapter ${activeChapter}. Please add ` +
-                    `/data/chapters/chapter-${activeChapter}.txt (or .docx) and refresh, ` +
+                    `No chapter content found for Chapter ${activeChapter}.Please add` +
+                    `/ data / chapters / chapter - ${activeChapter}.txt(or.docx) and refresh, ` +
                     `then select a chapter that has an uploaded file.`;
                 dbgError('ensureChapterContent', errMsg);
                 throw new Error(errMsg);
@@ -2663,20 +2663,20 @@
             const instructionPrompt = `You are a strict, highly critical Senior High School research panel defense judge.Your sole source of absolute truth is the research proposal provided below.
 
 CRITICAL EXECUTION PROTOCOLS:
-        1. TRUST THE DATA: When evaluating a question, you must read all sections of the matching proposal. 
+                    1. TRUST THE DATA: When evaluating a question, you must read all sections of the matching proposal. 
 2. EXTRACTION OVER GUESSING: If the information is present or clearly implied by their methodology / sampling, extract it.Do NOT guess outside information.
 3. NO LAZY REFUSALS: You are prohibited from responding with "This information is not explicitly detailed" if the answer can be synthesized from the text.
 4. QUESTION FORMAT: Frame questions as if directly asking the researchers(e.g., "What sampling method did you use?" not "According to your...")
-        5. ANSWER FORMAT: Frame answers in third person plural('The researchers...') as if the researchers are responding
-        6. CONTEXTUAL LIMITATION: ONLY use information from the provided research proposal
-        7. RESPONSE FORMAT: Provide ONLY valid JSON in this exact format: { "question": "your question here", "answer": "your answer here" }
-        8. VARIETY: The question and answer must be concrete and specific to the actual text below. Do NOT use generic template questions nor generic template answers. Quote or directly reference specific facts, names, numbers, or methods found in the proposal.
-        9. UNIQUENESS: Generate a fresh, distinct question/answer pair each time. Vary the focus and wording; never repeat the same generic phrasing across generations.
+                    5. ANSWER FORMAT: Frame answers in third person plural('The researchers...') as if the researchers are responding
+                    6. CONTEXTUAL LIMITATION: ONLY use information from the provided research proposal
+                    7. RESPONSE FORMAT: Provide ONLY valid JSON in this exact format: { "question": "your question here", "answer": "your answer here" }
+                    8. VARIETY: The question and answer must be concrete and specific to the actual text below.Do NOT use generic template questions nor generic template answers.Quote or directly reference specific facts, names, numbers, or methods found in the proposal.
+        9. UNIQUENESS: Generate a fresh, distinct question / answer pair each time.Vary the focus and wording; never repeat the same generic phrasing across generations.
 
 RESEARCH PROPOSAL:
 ${scopeMetadata.dataDump || "No research data available."}
 
-Now, as a panelist, ${randomAngle}.${difficultyPrompt} ${componentPrompt} Base your question and the researchers' answer (in third person plural 'The researchers...') ONLY on information found in the proposal above.Provide the question and answer in JSON format: { "question": "...", "answer": "..." } `;
+                    Now, as a panelist, ${randomAngle}.${difficultyPrompt} ${componentPrompt} Base your question and the researchers' answer (in third person plural 'The researchers...') ONLY on information found in the proposal above.Provide the question and answer in JSON format: { "question": "...", "answer": "..." } `;
 
             let structuredData;
             try {
