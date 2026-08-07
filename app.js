@@ -654,20 +654,13 @@ function setGenerateButtonBusy(busy, statusText) {
     }
 }
 
-// Live status text shown just below the button while generating.
-function setGenerateStatus(text) {
-    let el = document.getElementById('generate-status');
-    if (!el) {
-        el = document.createElement('div');
-        el.id = 'generate-status';
-        el.className = 'generate-status';
-        const btn = document.querySelector('.btn-generate-large');
-        if (btn && btn.parentElement) {
-            btn.parentElement.insertBefore(el, btn.nextSibling);
-        }
-    }
-    el.textContent = text || '';
-    el.style.display = text ? 'block' : 'none';
+// Toggle the opaque cover layer that sits over the flashcard while a new
+// question is being generated. This gives clear visual feedback that the
+// previous card is being replaced and blocks accidental flips/taps.
+function setCardCover(visible) {
+    const loader = document.getElementById('loader');
+    if (!loader) return;
+    loader.style.display = visible ? 'flex' : 'none';
 }
 
 let activeGenerationController = null;
@@ -679,11 +672,13 @@ async function triggerInterrogation() {
         return;
     }
 
-    // Prevent double-clicks and give instant, non-blocking feedback.
+    // Prevent double-clicks while a request is already in flight.
     const btn = document.querySelector('.btn-generate-large');
     if (btn && btn.classList.contains('is-loading')) return;
+
+    // Show "Thinking..." on the button and an opaque cover over the flashcard.
     setGenerateButtonBusy(true, 'Thinking...');
-    setGenerateStatus('Asking the AI panel...');
+    setCardCover(true);
 
     // 2. Prepare the prompt with difficulty and component
     let scopeMetadata;
@@ -691,7 +686,7 @@ async function triggerInterrogation() {
         scopeMetadata = await ensureChapterContent();
     } catch (e) {
         setGenerateButtonBusy(false);
-        setGenerateStatus('');
+        setCardCover(false);
         showErrorModal(e.message);
         return;
     }
@@ -830,7 +825,7 @@ Now, as a panelist, ${randomAngle}.${difficultyPrompt} ${componentPrompt} Base y
 
     if (!structuredData) {
         setGenerateButtonBusy(false);
-        setGenerateStatus('');
+        setCardCover(false);
         showErrorModal(generationError && generationError.message
             ? generationError.message
             : 'The AI service is currently unavailable. Please try again later.');
@@ -850,6 +845,11 @@ Now, as a panelist, ${randomAngle}.${difficultyPrompt} ${componentPrompt} Base y
 
     executionPointerIndex = generatedCardsCollection.length - 1;
     localStorage.setItem('mcesi_sim_history', JSON.stringify(generatedCardsCollection));
+
+    // Restore the button label and remove the flashcard cover now that the
+    // new card is ready to show.
+    setGenerateButtonBusy(false);
+    setCardCover(false);
 
     renderHistoryPanelUI();
     syncCardDisplaySurface();
