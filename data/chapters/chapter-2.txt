@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 ﻿METHODS
 Research Design
        This study will employ a quantitative research design because it enables the researchers to collect numerical data from a sufficiently large population and perform statistical analyses that reveal patterns and relationships among variables. This approach is appropriate because it allows the researchers to examine the relationship between the utilization of ChatGPT and QuillBot among Grade 12 students and their academic performance. Quantitative research also helps reduce the influence of bias through systematic data collection and analysis, enabling the researchers to accurately interpret the data and produce valid and reliable findings (Alford & Teater, 2025).
@@ -31,14 +30,3 @@ Data Analysis/Statistical Treatment of Data
 REFERENCES
 Alford, S., & Teater, B. (2025). Quantitative research. In Handbook of research methods in social work (pp. 156-171). Edward Elgar Publishing. https://doi.org/10.4337/9781035310173.00023
 Sreekumar, D. (2026, June 2). What is correlational research: Definition, types, and examples. Researcher.Life. https://researcher.life/blog/article/what-is-correlational-research-definition-and-examples/
-
-
-
-MAGALANG CHRISTIAN ECUMENICAL SCHOOL, INC.
-Marbea Subd., Sta. Cruz, Magalang, Pampanga
-
-Relationship Between ChatGPT, QuillBot Utilization, and Students' Academic Performance
-
-=======
-Chapter 2 - Review of Related Literature Chapter 2: Review of Related Literature This chapter summarizes existing studies and scholarly discussions about AI-assisted learning tools in educational settings. It highlights how digital platforms can support personalized learning, improve writing accuracy, and make research work easier for students. The chapter also discusses concerns about dependency, reliability, and the need to balance technology use with critical thinking and academic integrity. The researchers review previous studies and compare them with the current study to identify the gap that the research aims to address. The literature review helps establish the importance of the study and provides support for the research questions and objectives.
->>>>>>> 8f74ac3 (Implement code changes to enhance functionality and improve performance)
