@@ -8,7 +8,7 @@ window.addEventListener('load', () => {
         const loader = document.getElementById('intro-loader');
         loader.style.opacity = '0';
         setTimeout(() => loader.style.visibility = 'hidden', 400);
-    }, 900);
+    }, 3000);
 });
 
 // Sidebar Toggle Logic
@@ -339,16 +339,15 @@ function populateChapterPreview() {
     if (previewTitle) previewTitle.textContent = scope.title;
     if (contentArea) {
         if (usingUploadedFiles && scope.pdfPath) {
-            // Show the PDF file as the visual preview (no text overview).
+            // Do NOT render the PDF inline (it breaks the mobile layout and
+            // forces the page to scroll). Instead show a wide button that opens
+            // the PDF in the chapter-viewer overlay only when clicked.
             contentArea.innerHTML = `
                 <div class="chapter-summary">
-                    <div class="chapter-summary-card" style="padding:0; overflow:hidden;">
-                        <iframe src="${scope.pdfPath}#toolbar=1&navpanes=0" title="${scope.title} PDF preview"
-                            style="width:100%; min-height: 420px; border:none; border-radius:14px;"></iframe>
-                    </div>
-                    <div class="chapter-preview-actions" style="margin-top:10px;">
-                        <a class="btn-proposal chapter-viewer-copy" href="${scope.pdfPath}" target="_blank" rel="noopener">Open PDF</a>
-                    </div>
+                    <button type="button" class="btn-view-pdf" onclick="openChapterViewer(${activeChapter})">
+                        <span class="btn-view-pdf-icon">📄</span>
+                        <span class="btn-view-pdf-label">View Chapter PDF</span>
+                    </button>
                 </div>
             `;
         } else if (activeChapter > 2) {
@@ -358,7 +357,7 @@ function populateChapterPreview() {
         }
     }
     if (statusLabel) {
-        statusLabel.textContent = usingUploadedFiles ? 'PDF preview from uploaded chapter files' : 'No uploaded chapter files found';
+        statusLabel.textContent = usingUploadedFiles ? 'Chapter available — tap "View PDF" to open the document' : 'No uploaded chapter files found';
     }
     saveChapterState();
     document.querySelectorAll('.chapter-btn').forEach((btn) => {
@@ -883,7 +882,7 @@ Now, as a panelist, ${randomAngle}.${difficultyPrompt} ${componentPrompt} Base y
 
     generatedCardsCollection.push({
         id: Date.now(),
-        label: `${scopeMetadata.title.replace(/\s+/g, ' ').trim()} - AI Research`,
+        label: `${scopeMetadata.title.replace(/\s+/g, ' ').trim()}`,
         question: structuredData.question,
         answer: structuredData.answer,
         difficulty: currentDifficulty,
@@ -974,7 +973,7 @@ function renderHistoryPanelUI() {
         executionListItem.className = `history-item ${isActive ? 'active' : ''}`;
 
         executionListItem.innerHTML = `
-    <span>Q${visibleIndex + 1}: ${cardInstance.label} (${cardInstance.difficulty})</span>
+    <span class="history-item-label">Q${visibleIndex + 1}: ${cardInstance.label} (${cardInstance.difficulty})</span>
         <button class="delete-btn" onclick="deleteHistoryItem(event, ${originalIndex})">🗑️</button>
         <button class="favorite-btn ${cardInstance.favorite ? 'favorited' : ''}" onclick="toggleFavorite(event, ${originalIndex})">★</button>
     `;
@@ -1061,26 +1060,6 @@ function closeErrorModal() {
     if (overlay) overlay.style.display = 'none';
 }
 
-// Text-to-speech: read the current card's question (front) or answer (back) aloud.
-function speakCard(event, side) {
-    event.stopPropagation();
-    if (executionPointerIndex === -1) {
-        alert('Generate a flashcard first before reading it aloud.');
-        return;
-    }
-    if (!('speechSynthesis' in window)) {
-        alert('Text-to-speech is not supported on this device.');
-        return;
-    }
-    const card = generatedCardsCollection[executionPointerIndex];
-    const text = side === 'back' ? card.answer : card.question;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 1;
-    utterance.pitch = 1;
-    window.speechSynthesis.speak(utterance);
-}
-
 // Clear favorites only (keeps all other flashcards intact).
 function clearFavorites() {
     const favoriteCount = generatedCardsCollection.filter((c) => c.favorite).length;
@@ -1123,82 +1102,99 @@ function exportToPDF() {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
 
-    // Add title
-    doc.setFontSize(18);
-    doc.text("Research Defense Practice", 105, 20, null, null, "center");
-    doc.setFontSize(12);
-    doc.text(`Exported on: ${new Date().toLocaleDateString()} `, 105, 30, null, null, "center");
-
-    // Add group members
-    doc.setFontSize(14);
-    doc.text("Group Members:", 20, 45);
-    doc.setFontSize(12);
-    const members = [
-        "Gonzales, Samantha Nicole B.",
-        "Manarang, Mikan M.",
-        "Almario, Joyce P.",
-        "Bondoc, Cassandra D.",
-        "Casupanan, Rhian L.",
-        "Dizon, Lynx Leonard G."
-    ];
-
-    members.forEach((member, index) => {
-        doc.text(member, 20, 55 + (index * 7));
-    });
-
-    // Add flashcards
-    let yPosition = 100;
+    // Compact layout: 9pt font, narrow margins, two columns, tight line spacing,
+    // no separator lines. This keeps a large batch of flashcards on as few pages
+    // as possible for printing/handouts.
+    const pageWidth = doc.internal.pageSize.width;
     const pageHeight = doc.internal.pageSize.height;
+    const marginX = 12;
+    const marginY = 12;
+    const gutter = 8;                        // gap between the two columns
+    const colWidth = (pageWidth - marginX * 2 - gutter) / 2;
+    const lineH = 3.4;                       // ~1.0 line spacing at 9pt
+
+    // Track the current column cursor { x, y }.
+    const col = { x: marginX, y: marginY };
+
+    const ensureSpace = (needed) => {
+        if (col.y + needed > pageHeight - marginY) {
+            doc.addPage();
+            col.x = marginX;
+            col.y = marginY;
+        }
+    };
+
+    // Move to the next column when the current one runs short on space,
+    // preferring the right-hand column before opening a new page.
+    const nextCell = () => {
+        if (col.x === marginX) {
+            col.x += colWidth + gutter;
+            col.y = marginY;
+        } else {
+            col.x = marginX;
+            col.y = marginY;
+        }
+    };
+
+    // Header block spanning the full page width.
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.text("Research Defense Practice", pageWidth / 2, marginY, { align: "center" });
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text(`Exported on: ${new Date().toLocaleDateString()}`, pageWidth / 2, marginY + 5, { align: "center" });
+    doc.setFontSize(8);
+    doc.text("Group: Gonzales, Manarang, Almario, Bondoc, Casupanan, Dizon", pageWidth / 2, marginY + 10, { align: "center" });
+
+    // Reset cursor below the header.
+    col.x = marginX;
+    col.y = marginY + 16;
 
     generatedCardsCollection.forEach((card, index) => {
-        // Check if we need a new page
-        if (yPosition > pageHeight - 80) {
-            doc.addPage();
-            yPosition = 20;
-        }
+        const heading = `FLASHCARD #${index + 1} (${(card.difficulty || '').toUpperCase()})`;
+        const topic = `Topic: ${card.label}`;
+        const question = `Question: ${card.question}`;
+        const answer = `Answer: ${card.answer}`;
+        const timestamp = `Generated: ${new Date(card.timestamp).toLocaleString()}`;
+        const favFlag = card.favorite ? " [Favorite]" : "";
 
-        // Add flashcard content
-        doc.setFontSize(14);
-        doc.text(`FLASHCARD ${index + 1} `, 20, yPosition);
-        yPosition += 10;
+        // Measure how tall this card's column block will be (middle section first,
+        // then the two text blocks which can wrap).
+        const qLines = doc.splitTextToSize(question, colWidth);
+        const aLines = doc.splitTextToSize(answer, colWidth);
 
-        doc.setFontSize(12);
-        doc.text(`Topic: ${card.label} `, 20, yPosition);
-        yPosition += 7;
+        // Heading + 2 bold label lines + question block + empty line + answer
+        // block + timestamp line + trailing gap.
+        const needed = 3 * lineH + qLines.length * lineH + lineH + aLines.length * lineH + lineH + 2;
 
-        doc.text(`Difficulty: ${card.difficulty} `, 20, yPosition);
-        yPosition += 7;
+        ensureSpace(needed);
 
-        doc.text(`Component: ${card.component} `, 20, yPosition);
-        yPosition += 7;
+        // FLASHCARD # heading (bold).
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        doc.text(heading + favFlag, col.x, col.y);
+        col.y += lineH;
 
-        doc.text(`Generated: ${new Date(card.timestamp).toLocaleString()} `, 20, yPosition);
-        yPosition += 7;
+        // Topic line (bold).
+        doc.text(topic, col.x, col.y);
+        col.y += lineH;
 
-        doc.text(`Favorite: ${card.favorite ? 'Yes' : 'No'} `, 20, yPosition);
-        yPosition += 10;
+        // Question + answer blocks (normal weight, line-height 1 on the x-axis).
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8.5);
+        doc.text(qLines, col.x, col.y);
+        col.y += qLines.length * lineH + lineH;
 
-        // Add question
-        doc.setFontSize(12);
-        doc.text("QUESTION:", 20, yPosition);
-        yPosition += 7;
+        doc.text(aLines, col.x, col.y);
+        col.y += aLines.length * lineH + lineH;
 
-        const questionLines = doc.splitTextToSize(card.question, 170);
-        doc.text(questionLines, 20, yPosition);
-        yPosition += questionLines.length * 7 + 5;
+        doc.setFontSize(7.5);
+        doc.setTextColor(120);
+        doc.text("Topic · " + timestamp, col.x, col.y);
+        doc.setTextColor(0);
+        col.y += 2;
 
-        // Add answer
-        doc.setFontSize(12);
-        doc.text("ANSWER:", 20, yPosition);
-        yPosition += 7;
-
-        const answerLines = doc.splitTextToSize(card.answer, 170);
-        doc.text(answerLines, 20, yPosition);
-        yPosition += answerLines.length * 7 + 10;
-
-        // Add separator
-        doc.line(20, yPosition, 190, yPosition);
-        yPosition += 15;
+        nextCell();
     });
 
     // Save the PDF
