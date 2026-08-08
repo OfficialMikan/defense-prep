@@ -1,16 +1,11 @@
 ﻿Relationship Between ChatGPT, QuillBot Utilization, and Students' Academic Performance
 
-
-
-
 A Research Presented to the Grade 12 Students of the Science, Technology, Engineering, and Mathematics (STEM) Strand
 Magalang Christian Ecumenical School, Inc.
-
 
 In Partial Fulfillment 
 of the Requirements for the subject
 Research in Daily Life 2
-
 
 Submitted by: 
 1. Gonzales, Samantha Nicole B.
@@ -32,8 +27,6 @@ To the classmates, for their collaboration, encouragement, and shared commitment
 To the families of the researchers, for their unconditional love, patience, and belief in the researchers' potential, which served as motivation and support.
 Lastly, to Almighty God, for His divine guidance, blessings, and constant inspiration that made this research possible.
 
-
-
 Abstract
 The increasing integration of Artificial Intelligence (AI) in education has transformed students' learning experiences by providing accessible and intelligent academic support. Among the most widely utilized AI-assisted learning tools, ChatGPT and QuillBot have become valuable resources for research, concept clarification, writing enhancement, and other educational activities. Despite their growing popularity, concerns remain regarding whether students' utilization of these tools is associated with improved academic performance. This study aims to determine the relationship between the utilization of ChatGPT and QuillBot and the academic performance of Grade 12 students at Magalang Christian Ecumenical School Inc. (MCESI) during the School Year 2026-2027.
  
@@ -42,181 +35,6 @@ Guided by the Technology Acceptance Model (TAM) and Constructivist Learning Theo
 The findings of the study are expected to provide insights into how students utilize ChatGPT and QuillBot for academic purposes and whether such utilization is significantly associated with their academic performance. The results may contribute to the responsible integration of AI-assisted learning tools in education by serving as a basis for educators, students, and school administrators in developing guidelines that promote ethical, effective, and meaningful AI use while fostering independent learning and academic integrity.
  
 Keywords: Artificial Intelligence, ChatGPT, QuillBot, AI-Assisted Learning Tools, Academic Performance, Grade 12 Students, Technology Acceptance Model, Correlational Research
-
-
-
-Table of Contents
-Title Page ..................................................................................................
-i
-Approval Sheet ..........................................................................................
-ii
-Acknowledgment .......................................................................................
-iii
-Abstract ...................................................................................................
-iv
-Table of Contents .......................................................................................
-v
-List of Tables .............................................................................................
-vi
-List of Figures ...........................................................................................
-vii
-List of Appendices ....................................................................................
-viii
-
-INTRODUCTION
-
-Introduction ............................................................................................
-0
-Theoretical Framework ..............................................................................
-1
-Conceptual Framework ..............................................................................
-2
-Statement of the Problem ............................................................................
-3
-Significance of the Study ............................................................................
-4
-Scope and Delimitation ..............................................................................
-5
-Definition of Terms ...................................................................................
-6
-METHODS
-
-Research Design .....................................................................................
-7
-Respondents/Participants ...........................................................................
-8
-Instruments ...........................................................................................
-9
-Ethical Considerations ..............................................................................
-10
-Data Collection .......................................................................................
-11
-Data Analysis/Statistical Treatment of Data
-12
-RESULTS, FINDINGS, AND DISCUSSION
-
-Result (insert results) .................................................................................
-14
-SUMMARY, CONCLUSION AND RECOMMENDATION 
-
-Summary of Findings .................................................................................
-15
-Conclusion .............................................................................................
-16
-Recommendations ...................................................................................
-17
-
-
-References ................................................................................................
-18
-Appendices ...............................................................................................
-19
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-LIST OF TABLES 
-
-Tables
-
- 1 ...........................................................................................................
-21
- 2 ..........................................................................................................
-22
- 3 ..........................................................................................................
-23
- 4 ..........................................................................................................
-24
- 5 ...........................................................................................................
-25
-
-
-LIST OF FIGURES
-
-Figure
-
-1 The Paradigm of the Study ........................................................................
-21
-
-
-
-
-
-
-
-
-
-
-LIST OF APPENDICES 
-
-Appendix
-
-A. Letter of Request to the School Administrators ................................................
-21
-B. Letter for Validators..................................................................................
-22
-C. Validation Tools .......................................................................................
-23
-D. Informed Consent Form ...........................................................................
-24
-E. Instrument of the Study ............................................................................
-25
-F. Certificate from the Statistician ..................................................................
-26
-G. Curriculum Vitae ....................................................................................
-27
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-APPROVAL SHEET
-       This research titled "Relationship Between ChatGPT, QuillBot Utilization, and Students' Academic Performance", prepared and submitted by Samantha Nicole B. Gonzales, Mikan M. Manarang, Joyce P. Almario, Cassandra D. Bondoc, Rhian Aryana L. Casupanan, Lynx Leonard G. Dizon, Grade 12 students under the Science, Technology, Engineering, and Mathematics (STEM) strand of MCESI, in partial fulfillment of the requirements for the subject Research in Daily Life 2, is hereby recommended for approval and acceptance. . 
-
-______________________________________________________________________________
-
-JERISHA M. PALLASIGUI
-Research Adviser
-
-_____________________
-Date Signed
-
-
-
-PANEL OF EXAMINERS
-
-TBF
-TBF
-Member
-Member
-___________________
-Date Signed
-___________________
-Date Signed
-
-Approved and accepted in partial fulfillment of the requirements for the subject Research in Daily Life 2. 
-Passed the Final Oral Defense on ____________________, with a rating of _______________.
 
 INTRODUCTION
        Artificial intelligence (AI) has increasingly become an integral part of modern education, reshaping how students learn, conduct academic research, solve problems, and complete academic requirements. As AI-powered technologies continue to evolve, they are transforming traditional learning into more interactive, personalized, and technology-driven experiences. Among these innovations are AI-Assisted Learning Tools (AIALTs), which provide personalized instruction, improve learning efficiency, and reduce unnecessary cognitive load, enabling students to better understand complex concepts and accomplish academic tasks more effectively (Alam et al., 2026). Furthermore, Mallillin (2024) emphasized that AI contributes to students' academic achievement by enhancing learning mechanisms, strengthening motivation, improving study habits, and fostering positive attitudes toward learning. However, the availability of AI-assisted learning tools does not necessarily guarantee improved academic performance. Rather, their educational effectiveness depends on how students utilize these technologies within their learning practices. Appropriate utilization may enhance conceptual understanding, strengthen study habits, and improve task completion, whereas excessive or inappropriate reliance may reduce independent learning and hinder long-term academic development.

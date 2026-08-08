@@ -391,6 +391,37 @@ function buildStyledChapterText(text) {
     return html;
 }
 
+// Build a readable text preview that preserves the original line structure of
+// the chapter file. Unlike buildStyledChapterText (which treats the whole
+// dump as one flow), this splits on blank lines into paragraphs so each
+// section reads as its own block instead of one giant blob.
+function buildChapterPreviewText(text) {
+    const raw = String(text || '').replace(/\r/g, '');
+    if (!raw.trim()) {
+        return '<div class="chapter-empty">Chapter content is not available yet.</div>';
+    }
+
+    // Split into paragraphs on blank lines, then trim each.
+    const paragraphs = raw
+        .split(/\n{2,}/)
+        .map((block) => block.trim())
+        .filter(Boolean);
+
+    const html = paragraphs.map((block) => {
+        // Detect all-caps heading lines within the block.
+        const lines = block.split('\n').map((l) => l.trim());
+        const parts = lines.map((line) => {
+            if (/^[A-Z][A-Z\s&'’.\-/]{1,}$/.test(line) && line.length >= 2 && line.length <= 80) {
+                return `<h4 class="chapter-styled-heading">${escapeHtml(line)}</h4>`;
+            }
+            return `<p class="chapter-styled-paragraph">${escapeHtml(line)}</p>`;
+        });
+        return parts.join('');
+    }).join('');
+
+    return html;
+}
+
 function populateChapterPreview() {
     const contentArea = document.getElementById('chapterContentArea');
     const pdfList = document.getElementById('chapterPdfList');
@@ -415,10 +446,7 @@ function populateChapterPreview() {
 
     // Show the chapter's formatted text preview directly in the content area.
     if (contentArea) {
-        const scopeText = scope.dataDump || '';
-        contentArea.innerHTML = scopeText
-            ? buildStyledChapterText(scopeText)
-            : '<div class="chapter-empty">Chapter content is not available yet.</div>';
+        contentArea.innerHTML = buildChapterPreviewText(scope.dataDump);
 
         // Keep the preview area clickable so tapping it also opens the viewer.
         contentArea.onclick = () => {

@@ -19,13 +19,6 @@ Data Analysis/Statistical Treatment of Data
        Weighted Mean. The weighted mean will be used to determine the extent of Grade 12 students' utilization of ChatGPT and QuillBot in terms of frequency of AI tool usage, academic purposes of AI usage, dependence on AI assistance, and integration into study routines. It will summarize the respondents' level of utilization based on their responses to the Likert-scale questionnaire items.
        Mean. The mean will be used to determine the average academic performance of the respondents using their final general average from the previous academic year. As a measure of central tendency, it will summarize the respondents' overall academic achievement. The computed mean will be interpreted using the school's grading scale to describe the respondents' overall level of academic performance.
        Pearson Product-Moment Correlation Coefficient (Pearson's r). The Pearson Product-Moment Correlation Coefficient (Pearson's r) will be used to determine the strength, direction, and statistical significance of the relationship between the utilization of ChatGPT and QuillBot and the academic performance of Grade 12 students. This statistical test is appropriate because the study employs a quantitative correlational research design and seeks to determine whether a significant relationship exists between the independent and dependent variables. The significance level will be set at 0.05. If the computed p-value is less than or equal to 0.05, the null hypothesis will be rejected, indicating that a statistically significant relationship exists between the variables. Conversely, if the computed p-value is greater than 0.05, the null hypothesis will fail to be rejected, indicating that no statistically significant relationship exists between the variables.
-       
-
-
-
-
-
-
 
 REFERENCES
 Alford, S., & Teater, B. (2025). Quantitative research. In Handbook of research methods in social work (pp. 156-171). Edward Elgar Publishing. https://doi.org/10.4337/9781035310173.00023
