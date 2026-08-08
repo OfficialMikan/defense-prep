@@ -1,4 +1,5 @@
-﻿Relationship Between ChatGPT, QuillBot Utilization, and Students' Academic Performance
+﻿**TITLE**
+Relationship Between ChatGPT, QuillBot Utilization, and Students' Academic Performance
 
 A Research Presented to the Grade 12 Students of the Science, Technology, Engineering, and Mathematics (STEM) Strand
 Magalang Christian Ecumenical School, Inc.
@@ -15,7 +16,7 @@ Submitted by:
 5. Casupanan, Rhian Aryana L.
 6. Dizon, Lynx Leonard G.
 
-ACKNOWLEDGEMENT
+**ACKNOWLEDGEMENT**
 The researchers would like to express their sincere gratitude to the following individuals and institutions whose support, guidance, and encouragement made the completion of this study possible:
 To Magalang Christian Ecumenical School, Inc., for providing a conducive learning environment and the necessary resources that supported the conduct of this research.
 To Jerisha M. Pallasigui, the research adviser, for the invaluable guidance, constructive feedback, patience, and unwavering encouragement throughout the completion of this study.
@@ -27,7 +28,7 @@ To the classmates, for their collaboration, encouragement, and shared commitment
 To the families of the researchers, for their unconditional love, patience, and belief in the researchers' potential, which served as motivation and support.
 Lastly, to Almighty God, for His divine guidance, blessings, and constant inspiration that made this research possible.
 
-Abstract
+**ABSTRACT**
 The increasing integration of Artificial Intelligence (AI) in education has transformed students' learning experiences by providing accessible and intelligent academic support. Among the most widely utilized AI-assisted learning tools, ChatGPT and QuillBot have become valuable resources for research, concept clarification, writing enhancement, and other educational activities. Despite their growing popularity, concerns remain regarding whether students' utilization of these tools is associated with improved academic performance. This study aims to determine the relationship between the utilization of ChatGPT and QuillBot and the academic performance of Grade 12 students at Magalang Christian Ecumenical School Inc. (MCESI) during the School Year 2026-2027.
  
 Guided by the Technology Acceptance Model (TAM) and Constructivist Learning Theory, the study employs a quantitative non-experimental correlational research design involving 50 Grade 12 students selected through simple random sampling. Data will be collected using a validated researcher-made questionnaire that measures students' utilization of ChatGPT and QuillBot in terms of frequency of AI tool usage, academic purposes of AI usage, dependence on AI assistance, and integration of AI into study routines. Academic performance will be measured using indicators that include subject grades, completion of academic requirements, understanding of lessons, and academic achievement level. Academic performance will be determined through the respondents' self-reported academic performance category. The collected data will be analyzed using frequency, percentage, weighted mean, and Pearson's Product-Moment Correlation Coefficient to determine whether a significant relationship exists between the variables.
@@ -36,7 +37,7 @@ The findings of the study are expected to provide insights into how students uti
  
 Keywords: Artificial Intelligence, ChatGPT, QuillBot, AI-Assisted Learning Tools, Academic Performance, Grade 12 Students, Technology Acceptance Model, Correlational Research
 
-INTRODUCTION
+**INTRODUCTION**
        Artificial intelligence (AI) has increasingly become an integral part of modern education, reshaping how students learn, conduct academic research, solve problems, and complete academic requirements. As AI-powered technologies continue to evolve, they are transforming traditional learning into more interactive, personalized, and technology-driven experiences. Among these innovations are AI-Assisted Learning Tools (AIALTs), which provide personalized instruction, improve learning efficiency, and reduce unnecessary cognitive load, enabling students to better understand complex concepts and accomplish academic tasks more effectively (Alam et al., 2026). Furthermore, Mallillin (2024) emphasized that AI contributes to students' academic achievement by enhancing learning mechanisms, strengthening motivation, improving study habits, and fostering positive attitudes toward learning. However, the availability of AI-assisted learning tools does not necessarily guarantee improved academic performance. Rather, their educational effectiveness depends on how students utilize these technologies within their learning practices. Appropriate utilization may enhance conceptual understanding, strengthen study habits, and improve task completion, whereas excessive or inappropriate reliance may reduce independent learning and hinder long-term academic development.
 
        Recent studies consistently indicate that AI-Assisted Learning Tools (AIALTs) may contribute to improved academic outcomes by supporting students' understanding, increasing task efficiency, and providing personalized academic assistance that enhances learning experiences and academic achievement (Dong et al., 2025; Wu, 2026; Jyoti, 2025). Evidence from a meta-analysis further suggests that artificial intelligence positively influences academic achievement across diverse educational contexts, although its effectiveness varies depending on how these technologies are implemented and integrated into the teaching and learning process (Dong et al., 2025). Similarly, AI-assisted learning tools have been found to improve task completion, promote self-reflection, strengthen digital competencies, and enhance practical skills, with particularly significant benefits among STEM students when these technologies are used to support, rather than replace, independent thinking (Wu, 2026; Jyoti, 2025). However, the literature consistently emphasizes that these educational benefits are not guaranteed, as their effectiveness depends on the responsible utilization of AI-assisted learning tools, appropriate instructional guidance, effective institutional implementation, and students' ability to use these technologies as learning support rather than as substitutes for independent thinking (Younas et al., 2025). Collectively, these findings suggest that while AI-assisted learning tools have the potential to positively influence students' academic performance, their educational value ultimately depends on how effectively students, teachers, and educational institutions integrate these technologies into the teaching and learning process.
@@ -58,8 +59,7 @@ Conceptual Framework
        The dependent variable is the academic performance of Grade 12 students, measured through four indicators: subject grades, completion of academic requirements, understanding of lessons, and academic achievement level. These indicators collectively reflect students' academic outcomes and overall performance in school.
        The paradigm assumes that the utilization of ChatGPT and QuillBot is associated with the academic performance of Grade 12 students. Specifically, the study seeks to determine whether a statistically significant relationship exists between students' utilization of these AI-assisted learning tools and their academic performance.
 
-Figure 1: The Paradigm of the Study
-Statement of the Problem
+**Statement of the Problem**
 This study aims to determine the relationship between the utilization of Artificial Intelligence (AI)-assisted learning tools, specifically ChatGPT and QuillBot, and the academic performance of Grade 12 students at Magalang Christian Ecumenical School Inc. (MCESI) during the School Year 2026-2027. Specifically, it seeks to answer the following questions:
 1. What is the extent of Grade 12 students' utilization of ChatGPT and QuillBot in terms of:
 a. frequency of AI tool usage;
@@ -72,12 +72,13 @@ b. completion of academic requirements;
 c. understanding of lessons; and
 d. academic achievement level?
 3. Is there a significant relationship between the utilization of ChatGPT and QuillBot, in terms of frequency of AI tool usage, academic purposes of AI usage, dependence on AI assistance, and integration of AI into study routines, and the academic performance of Grade 12 students?
-Hypothesis
+
+**Hypothesis**
      Null Hypothesis (H₀). There is no significant relationship between the utilization of ChatGPT and QuillBot, in terms of frequency of AI tool usage, academic purposes of AI usage, dependence on AI assistance, and integration of AI into study routines, and the academic performance of Grade 12 students.
  
      Alternative Hypothesis (H₁). There is a significant relationship between the utilization of ChatGPT and QuillBot and the academic performance of Grade 12 students at Magalang Christian Ecumenical School Inc. (MCESI) during the School Year 2026-2027.
      
-Significance of the Study
+**Significance of the Study**
      This study aims to determine whether there is a significant relationship between the utilization of ChatGPT and QuillBot and the academic performance of Grade 12 SHS students at MCESI. The findings of this study may benefit the following:
  
      Students. Students may benefit from the findings of this study by gaining a clearer understanding of the relationship between AI-assisted learning tools and academic performance. Additionally, the findings may encourage them to use AI-assisted learning tools responsibly and effectively as learning aids, helping them improve their study habits and academic performance without becoming overly dependent on these technologies.
@@ -90,12 +91,12 @@ Significance of the Study
  
      Body of Knowledge. The findings of this study will contribute to the existing body of knowledge by serving as a recent addition to the literature on the possible relationship between AI-assisted learning tools and students' academic performance. It will help expand understanding of how these tools may influence students' learning outcomes and academic success, particularly among Grade 12 SHS students.
      
-Scope and Delimitation
+**Scope and Delimitation**
      This study aims to determine the relationship between Artificial Intelligence (AI)-Assisted Learning Tools - specifically ChatGPT and QuillBot - and the academic performance of Magalang Christian Ecumenical School Incorporated (MCESI) Grade 12 senior high school students during the School Year 2026-2027. The chosen respondents will be 50 Grade 12 students currently enrolled at MCESI, selected using simple random sampling, in which every Grade 12 student is given an equal chance of being chosen. The study will employ a quantitative research approach, specifically a non-experimental correlational research design, to examine the relationship between the utilization of ChatGPT and QuillBot among Grade 12 students and their academic performance. The general purpose of this study is to understand how Grade 12 learners utilize ChatGPT and QuillBot in their academic tasks and how such utilization may be related to their academic performance. Specifically, it aims to determine the extent of students' utilization of ChatGPT and QuillBot in terms of their frequency of AI tool usage, academic purposes of AI usage, dependence on AI assistance, and integration of AI into study routines, and to examine whether these dimensions of utilization have a significant relationship with students' academic performance.
  
      This research is limited to students from MCESI, located at Marbea Subdivision, Sta. Cruz, Magalang, Pampanga, during the first term of the School Year 2026-2027; thus, the findings may not accurately reflect data from other schools or academic periods. The respondents are limited to Grade 12 students studying at MCESI. Data will be collected through structured questionnaires, which rely on the respondents' honesty and ability to express their experiences in detail. This research will also not include the effects or causes of AI use, as it focuses only on the relationship between the utilization of ChatGPT and QuillBot and the academic performance of students. Time constraints and the respondents' availability are part of the factors affecting the overall number of participants.
      
-Definition of Terms
+**Definition of Terms**
        Academic Performance. Refers to a student's achievement, progress, and success in academic subjects. In this study, it is measured through subject grades, completion of academic requirements, understanding of lessons, and academic achievement level. These indicators are used to determine whether students' utilization of AI-assisted learning tools is associated with their academic performance.
  
      Artificial Intelligence (AI). refers to technology or computer systems capable of completing tasks and answering questions, typically by providing information, generating ideas, and helping students understand lessons and complete tasks. In this study, it refers to the underlying technology behind ChatGPT and QuillBot.
@@ -114,9 +115,7 @@ Definition of Terms
        Dependence on AI Assistance. Refers to the extent to which Grade 12 students rely on ChatGPT and QuillBot in completing academic tasks and solving learning-related problems. In this study, it is one of the indicators used to measure the utilization of AI-assisted learning tools.
        Integration of AI into Study Routines. Refers to how Grade 12 students incorporate ChatGPT and QuillBot into their regular study practices and learning routines. In this study, it is one of the indicators used to measure the utilization of AI-assisted learning tools.
 
-RESULTS, FINDINGS AND DISCUSSION 
-SUMMARY, CONCLUSIONS AND RECOMMENDATIONS 
-REFERENCES
+**REFERENCES**
 Alam, M. N., Islam, M. A., Babiker, M. O. A., Siddiqui, M. S., Amin, M. B., & Oláh, J. (2026). AI-assisted learning tools and student learning outcomes: A cognitive load theory perspective. *Computers in Human Behavior Reports, 21*, 100986. https://doi.org/10.1016/j.chbr.2026.100986
 Baranggan, J., & Yamba, S. (2026). Use of AI-based learning tools and academic performance of senior high school students. *International Journal of Interdisciplinary Viewpoints, 2*(3), 49-54. https://doi.org/10.64612/ijiv.v2i3.84
 Davis, F. D. (1989). Perceived usefulness, perceived ease of use, and user acceptance of information technology. *MIS Quarterly, 13*(3), 319-340. https://doi.org/10.2307/249008

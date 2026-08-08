@@ -337,6 +337,146 @@ function getChapterScope(chapterNumber = chapterUploadState.activeChapter) {
     };
 }
 
+// ---------------------------------------------------------------------------
+// SECTION-BASED RETRIEVAL (lightweight RAG)
+// ---------------------------------------------------------------------------
+// The whole chapter is kept in memory (chapterUploadState.chapters) so nothing
+// is forgotten, but we DON'T resend the entire chapter to the AI on every call.
+// Instead we split it into sections by heading and inject ONLY the section(s)
+// most relevant to the current request. This gives the AI "the whole research
+// in mind" (via retrieval over all sections) while spending tokens only on the
+// relevant slice - efficient and no forgetting.
+//
+// The chapter text uses headings marked with **...** (e.g. **INTRODUCTION**,
+// **Statement of the Problem**, **Hypothesis**, **Significance of the Study**).
+// Some headings (Theoretical Framework, Conceptual Framework) are unmarked, so
+// we also treat any all-caps-ish standalone line as a heading boundary.
+
+// Translate a chapter into an ordered list of { heading, keywords, text }.
+function splitChapterIntoSections(text) {
+    const raw = String(text || '').replace(/\r/g, '\n');
+    const lines = raw.split('\n');
+    const sections = [];
+    let current = null;
+
+    const flush = () => {
+        if (current && current.text.trim()) {
+            current.text = current.text.trim();
+            sections.push(current);
+        }
+        current = null;
+    };
+
+    const isHeading = (line) => {
+        const t = line.trim();
+        if (!t) return false;
+        // Markdown-bold heading: **TITLE**
+        const boldMatch = t.match(/^\*\*(.+?)\*\*\s*$/);
+        if (boldMatch) return boldMatch[1].trim();
+        // All-caps / title-case standalone heading line (short)
+        if (t.length <= 60 && /^[A-Z][A-Za-z0-9\s&'’.\-/,()]+$/.test(t) && !t.endsWith('.')) {
+            return t;
+        }
+        return false;
+    };
+
+    for (const line of lines) {
+        const heading = isHeading(line);
+        if (heading) {
+            flush();
+            current = { heading, keywords: heading.toLowerCase(), text: '' };
+        } else if (current) {
+            current.text += line + '\n';
+        } else {
+            // Content before the first heading — treat as its own section.
+            if (!sections.length) {
+                current = { heading: 'Title', keywords: 'title', text: '' };
+            }
+            if (current) current.text += line + '\n';
+        }
+    }
+    flush();
+
+    // If nothing was split, fall back to a single section of the whole text.
+    if (!sections.length && raw.trim()) {
+        sections.push({ heading: 'Chapter', keywords: 'chapter', text: raw.trim() });
+    }
+    return sections;
+}
+
+// Map a component key to search keywords so we can find the matching section.
+const COMPONENT_KEYWORDS = {
+    title: ['title', 'relationship', 'academic performance'],
+    introduction: ['introduction'],
+    research_design: ['research design', 'design', 'correlational', 'quantitative', 'methodology'],
+    respondents: ['respondents', 'participants', 'sample', 'sampling', 'grade 12'],
+    respondents_participants: ['respondents', 'participants', 'sample', 'sampling', 'grade 12'],
+    motivation: ['motivation', 'rationale', 'significance', 'benefit'],
+    research_gap: ['research gap', 'gap', 'limited', 'further investigation', 'inconsisten'],
+    statement: ['statement of the problem', 'problem', 'aims to', 'seek to answer', 'objectives'],
+    method: ['method', 'methodology', 'procedure', 'data collection', 'statistical'],
+    references: ['references', 'al-', 'al.'],
+    instruments: ['instrument', 'questionnaire', 'validated', 'scale'],
+    ethical_considerations: ['ethical', 'consent', 'confidential', 'privacy', 'anonym'],
+    data_collection: ['data collection', 'gather', 'administer', 'distribute'],
+    data_analysis: ['data analysis', 'statistical', 'frequency', 'percentage', 'weighted mean', 'pearson', 'correlation']
+};
+
+// Pick the single most relevant section for a flashcard component.
+function selectSectionForComponent(scope, componentKey) {
+    const sections = splitChapterIntoSections(scope.dataDump);
+    const keywords = COMPONENT_KEYWORDS[componentKey];
+    if (!keywords || sections.length === 0) return scope.dataDump;
+
+    let best = null;
+    let bestScore = 0;
+    for (const section of sections) {
+        let score = 0;
+        for (const kw of keywords) {
+            if (section.text.toLowerCase().includes(kw)) score += 1;
+            if (section.heading.toLowerCase().includes(kw)) score += 2;
+        }
+        if (score > bestScore) {
+            bestScore = score;
+            best = section;
+        }
+    }
+    return best ? best.text : scope.dataDump;
+}
+
+// Keyword-overlap retrieval: given a user query, return the top N sections
+// whose text shares the most meaningful words with the query.
+function selectSectionsForQuery(scope, query, topN = 2) {
+    const sections = splitChapterIntoSections(scope.dataDump);
+    if (sections.length === 0) return scope.dataDump;
+
+    const stop = new Set(['the', 'a', 'an', 'and', 'or', 'of', 'to', 'in', 'is', 'are', 'for', 'on', 'with', 'their', 'about', 'what', 'how', 'does', 'do', 'can', 'you', 'your', 'it', 'this', 'that', 'will', 'study', 'research']);
+    const qWords = (query || '').toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 3 && !stop.has(w));
+
+    const scored = sections.map((section) => {
+        const secText = section.text.toLowerCase();
+        let score = 0;
+        for (const w of qWords) {
+            if (secText.includes(w)) score += 1;
+            if (section.heading.toLowerCase().includes(w)) score += 2;
+        }
+        return { section, score };
+    });
+
+    scored.sort((a, b) => b.score - a.score);
+    const top = scored.slice(0, topN);
+    const hasHits = top.some((r) => r.score > 0);
+
+    if (!hasHits) {
+        // No strong match — fall back to the most recently read section is not
+        // tracked, so just return the first sections (intro/methodology) which
+        // usually cover the widest ground.
+        return sections.slice(0, topN).map((s) => s.text).join('\n\n');
+    }
+
+    return top.map((r) => `[${r.section.heading}]\n${r.section.text}`).join('\n\n');
+}
+
 // Convert a chapter's raw text into richly formatted, safe HTML.
 // All-caps lines are treated as section headings; numbered items become
 // ordered lists; everything else becomes a paragraph. All content is escaped
@@ -851,9 +991,21 @@ async function triggerInterrogation() {
         return;
     }
 
-    // Use a truncated slice of the chapter for the flashcard prompt so a huge
-    // dataDump doesn't inflate the network payload and input token count.
-    const compactDump = truncateDump(scopeMetadata.dataDump, MAX_FLASHCARD_DUMP_CHARS);
+    // Determine the effective component to query. When "all", pick one at
+    // random so the generated card varies across sections.
+    const availableComponents = (chapterComponentOptions[currentChapter] || chapterComponentOptions[1])
+        .filter((option) => option.available && option.key !== 'all');
+    let effectiveComponentKey = currentComponent;
+    if (effectiveComponentKey === 'all' || !availableComponents.some((o) => o.key === effectiveComponentKey)) {
+        effectiveComponentKey = availableComponents[Math.floor(Math.random() * availableComponents.length)]?.key || 'all';
+    }
+
+    // SECTION-BASED RETRIEVAL: instead of sending a truncated slice of the
+    // whole chapter, pull ONLY the section(s) most relevant to the selected
+    // component. The full research is still in memory (chapterUploadState),
+    // so nothing is forgotten — but we only spend tokens on the relevant part.
+    const sectionDump = selectSectionForComponent(scopeMetadata, effectiveComponentKey);
+    const compactDump = truncateDump(sectionDump, MAX_FLASHCARD_DUMP_CHARS);
 
     // Randomly rotate question angles so consecutive generations stay varied.
     const questionAngles = [
@@ -882,9 +1034,6 @@ async function triggerInterrogation() {
     }
 
     let componentPrompt = "";
-    const availableComponents = (chapterComponentOptions[currentChapter] || chapterComponentOptions[1])
-        .filter((option) => option.available && option.key !== 'all');
-
     if (currentComponent === 'all') {
         const randomComponent = availableComponents[Math.floor(Math.random() * availableComponents.length)] || { name: 'main aspect' };
         componentPrompt = `Focus the question specifically on the ${randomComponent.name} section of the research proposal.`;
@@ -1544,6 +1693,11 @@ async function sendMessage() {
         }));
         history.push({ role: 'user', content: message });
 
+        // SECTION-BASED RETRIEVAL: pull only the sections most relevant to the
+        // user's question instead of sending the whole chapter. This keeps the
+        // AI focused on the relevant parts while saving tokens.
+        const relevantSections = selectSectionsForQuery(scopeMetadata, message, 2);
+
         // Call AI service with memory (messages) + compact chapter context.
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 45000);
@@ -1554,7 +1708,7 @@ async function sendMessage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     messages: history,
-                    chapter: scopeMetadata.dataDump
+                    chapter: relevantSections
                 }),
                 signal: controller.signal
             });
