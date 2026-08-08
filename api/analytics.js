@@ -2,10 +2,12 @@
 const { createClient } = require('@supabase/supabase-js');
 const dbg = require('./debug');
 
-// Initialize Supabase Client
+// Initialize Supabase Client (only if the URL is a valid HTTP/HTTPS URL —
+// otherwise fall back to console-only logging so the endpoint never crashes).
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey) : null;
+const isValidUrl = (typeof supabaseUrl === 'string') && /^https?:\/\/.+/.test(supabaseUrl);
+const supabase = (isValidUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey) : null;
 
 const MAX_BODY_BYTES = 20000;
 const ALLOWED_TYPES = new Set([
