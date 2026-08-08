@@ -146,11 +146,15 @@ const MAX_HISTORY_SIZE = 100;
 // Bound the chapter context sent to the AI so we don't blow the token budget.
 // The full chapter is retained in memory (chapterUploadState.chapters) but only
 // a truncated slice is embedded into the flashcard prompt / network payload.
-const MAX_FLASHCARD_DUMP_CHARS = 8000;
+// IMPORTANT: kept comfortably below the server's MAX_FLASHCARD_PROMPT_CHARS
+// (see /api/chat.js) once the instruction wrapper (~2000-2300 chars) is added
+// around it - otherwise the server-side cap silently truncates the END of the
+// prompt, chopping off the "respond in this JSON format" instruction.
+const MAX_FLASHCARD_DUMP_CHARS = 4000;
 
 // Cooldown (ms) between flashcard generations. Prevents back-to-back requests
 // from exhausting the Groq free-tier TPM budget and hitting 429s.
-const GENERATION_COOLDOWN_MS = 8000;
+const GENERATION_COOLDOWN_MS = 10000;
 let lastGenerationAt = 0;
 
 function truncateDump(text, max) {
@@ -788,7 +792,14 @@ Now, as a panelist, ${randomAngle}.${difficultyPrompt} ${componentPrompt} Base y
 
     let structuredData = null;
     let generationError = null;
-    const MAX_GENERATION_ATTEMPTS = 3;
+    // Only 2 attempts, and a real error (network/429/500/parse failure) now
+    // stops the loop immediately instead of trying again - see the `break`
+    // in the catch block below. The loop only continues past attempt 1 when
+    // the AI returned a perfectly valid answer that happened to be a
+    // near-duplicate of a recent question. This, combined with /api/chat.js
+    // no longer retrying the same rate-limited model, is what stops a single
+    // click from silently firing a dozen-plus requests at Groq.
+    const MAX_GENERATION_ATTEMPTS = 2;
     for (let attempt = 0; attempt < MAX_GENERATION_ATTEMPTS; attempt++) {
         try {
             const seed = Date.now() + attempt;
@@ -845,10 +856,14 @@ Now, as a panelist, ${randomAngle}.${difficultyPrompt} ${componentPrompt} Base y
             }
             dbgLog('triggerInterrogation', `Attempt ${attempt + 1} produced a near-duplicate question; regenerating...`);
         } catch (error) {
-            // Capture the error and try the next attempt instead of letting the
-            // whole function throw (which would leave the button stuck loading).
+            // Fail fast: the server (/api/chat.js) already tried a primary
+            // model and a fallback model internally, so a real error here
+            // means both failed. Looping again from the client would just
+            // fire another full primary+fallback round at an already
+            // rate-limited or unavailable service. Surface the error instead.
             generationError = error;
             dbgError('triggerInterrogation', 'AI generation failed on attempt ' + (attempt + 1), error);
+            break;
         }
     } // end for loop
 
