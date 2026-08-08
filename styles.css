@@ -448,6 +448,35 @@ body {
     transform: translateY(4px);
 }
 
+.btn-dashboard-link {
+    display: block;
+    width: 100%;
+    text-align: center;
+    background: var(--duo-green);
+    color: white;
+    text-decoration: none;
+    border: none;
+    border-bottom: 4px solid var(--duo-green-shadow);
+    padding: 12px;
+    border-radius: 16px;
+    font-family: var(--font);
+    font-weight: 800;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.1s ease;
+    box-sizing: border-box;
+}
+
+.btn-dashboard-link:hover {
+    opacity: 0.9;
+}
+
+.btn-dashboard-link:active {
+    border-bottom-width: 0px;
+    transform: translateY(4px);
+}
+
 .main-content {
     flex-grow: 1;
     display: flex;
@@ -799,6 +828,12 @@ body {
     color: white;
 }
 
+.btn-report-action {
+    background: var(--duo-red);
+    border-bottom-color: var(--duo-red-shadow);
+    color: white;
+}
+
 .proposal-selector {
     display: flex;
     flex-wrap: wrap;
@@ -825,11 +860,23 @@ body {
 
 .chapter-toolbar {
     display: flex;
-    justify-content: space-between;
+    justify-content: center;
     align-items: center;
     gap: 10px;
     flex-wrap: wrap;
     margin-bottom: 14px;
+}
+
+.chapter-toolbar-title {
+    font-size: 1.5rem;
+    font-weight: 900;
+    color: var(--duo-blue);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    line-height: 1.2;
+    text-align: center;
+    padding: 4px 0;
+    text-shadow: 2px 2px 0 var(--duo-blue-shadow);
 }
 
 .chapter-toolbar p {
@@ -1527,8 +1574,9 @@ body {
     --duo-gray-shadow: #2a2a2a;
 }
 
-/* Ensure all interactive elements have dark mode styles */
-:root.dark-mode .btn-difficulty,
+/* Ensure all interactive elements have dark mode styles.
+   NOTE: .btn-difficulty (Easy/Medium/Hard) intentionally keeps its branded
+   green/yellow/red colors in dark mode — they are NOT overridden here. */
 :root.dark-mode .component-dropdown,
 :root.dark-mode .btn-proposal {
     background: #2d2d2d;
@@ -1902,6 +1950,27 @@ body {
     .btn-proposal {
         padding: 14px 12px;
         font-size: 0.8rem;
+    }
+}
+
+/* Chapter panel title on mobile */
+@media (max-width: 768px) {
+    .chapter-toolbar-title {
+        font-size: 1.2rem;
+        letter-spacing: 0.5px;
+        text-shadow: 1.5px 1.5px 0 var(--duo-blue-shadow);
+    }
+
+    .chapter-panel {
+        padding: 14px;
+        border-radius: 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .chapter-toolbar-title {
+        font-size: 1.05rem;
+        letter-spacing: 0.3px;
     }
 }
 

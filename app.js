@@ -333,23 +333,40 @@ function populateChapterPreview() {
     const previewTitle = document.getElementById('chapterPreviewTitle');
     const contentArea = document.getElementById('chapterContentArea');
     const statusLabel = document.getElementById('chapterStatus');
+    const pdfList = document.getElementById('chapterPdfList');
     const activeChapter = chapterUploadState.activeChapter;
     const scope = getChapterScope(activeChapter);
-    const usingUploadedFiles = Boolean(chapterUploadState.chapters?.[activeChapter]);
+    const usingUploadedFiles = Boolean(chapterUploadState.chapters && Object.keys(chapterUploadState.chapters).length);
     if (previewTitle) previewTitle.textContent = scope.title;
+
+    // Build the "View Research Papers" list: one wide, tappable button per
+    // chapter that has an uploaded .txt/.docx file. The PDF is NOT embedded
+    // inline (avoids the mobile layout break) — it only opens in the overlay
+    // when a button is clicked.
+    if (pdfList) {
+        pdfList.innerHTML = '';
+        const loadOrder = [1, 2, 3, 4, 5];
+        loadOrder.forEach((chapterNumber) => {
+            const entry = chapterUploadState.chapters && chapterUploadState.chapters[chapterNumber];
+            if (!entry || !entry.pdfPath) return;
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'btn-view-pdf' + (chapterNumber === activeChapter ? ' active' : '');
+            btn.innerHTML = `<span class="btn-view-pdf-icon">📄</span><span class="btn-view-pdf-label">Chapter ${chapterNumber} PDF</span>`;
+            btn.addEventListener('click', () => openChapterViewer(chapterNumber));
+            pdfList.appendChild(btn);
+        });
+        if (!pdfList.children.length) {
+            const empty = document.createElement('div');
+            empty.className = 'chapter-empty';
+            empty.textContent = 'No uploaded chapter files found. Add chapter-1.txt / chapter-2.txt (and .pdf) to the data/chapters folder, then tap Refresh.';
+            pdfList.appendChild(empty);
+        }
+    }
+
     if (contentArea) {
-        if (usingUploadedFiles && scope.pdfPath) {
-            // Do NOT render the PDF inline (it breaks the mobile layout and
-            // forces the page to scroll). Instead show a wide button that opens
-            // the PDF in the chapter-viewer overlay only when clicked.
-            contentArea.innerHTML = `
-                <div class="chapter-summary">
-                    <button type="button" class="btn-view-pdf" onclick="openChapterViewer(${activeChapter})">
-                        <span class="btn-view-pdf-icon">📄</span>
-                        <span class="btn-view-pdf-label">View Chapter PDF</span>
-                    </button>
-                </div>
-            `;
+        if (usingUploadedFiles) {
+            contentArea.innerHTML = '<div class="chapter-empty">Select a paper above to view its PDF.</div>';
         } else if (activeChapter > 2) {
             contentArea.innerHTML = `<div class="chapter-empty">Chapter ${activeChapter} is unavailable for now. The content for this chapter has not been added yet.</div>`;
         } else {
@@ -357,20 +374,9 @@ function populateChapterPreview() {
         }
     }
     if (statusLabel) {
-        statusLabel.textContent = usingUploadedFiles ? 'Chapter available — tap "View PDF" to open the document' : 'No uploaded chapter files found';
+        statusLabel.textContent = usingUploadedFiles ? `${Object.keys(chapterUploadState.chapters).length} paper(s) available below` : 'No uploaded chapter files found';
     }
     saveChapterState();
-    document.querySelectorAll('.chapter-btn').forEach((btn) => {
-        const chapterNumber = Number(btn.dataset.chapter);
-        const isLoaded = Boolean(chapterUploadState.chapters && chapterUploadState.chapters[chapterNumber]);
-        btn.classList.toggle('active', chapterNumber === activeChapter);
-        btn.classList.toggle('loaded', isLoaded);
-        if (isLoaded) {
-            btn.textContent = `✓ Chapter ${chapterNumber} `;
-        } else {
-            btn.textContent = `Chapter ${chapterNumber} `;
-        }
-    });
 }
 
 function buildChapterSummary(text) {
@@ -680,10 +686,21 @@ function setGenerateButtonBusy(busy, statusText) {
 // Toggle the opaque cover layer that sits over the flashcard while a new
 // question is being generated. This gives clear visual feedback that the
 // previous card is being replaced and blocks accidental flips/taps.
-function setCardCover(visible) {
+// The label behind the spinner switches based on which side of the card is
+// currently visible (front = "Generating Question", back = "Generating Answer").
+// The card itself is NOT flipped/inverted while the cover is up.
+const DEFAULT_COVER_LABEL = 'Generating Question...';
+function setCardCover(visible, label) {
     const loader = document.getElementById('loader');
     if (!loader) return;
     loader.style.display = visible ? 'flex' : 'none';
+    const labelEl = document.getElementById('loaderLabel');
+    if (labelEl) {
+        labelEl.textContent = label || DEFAULT_COVER_LABEL;
+    }
+    // Keep the current card orientation while the cover is up (no inversion).
+    // Note: we intentionally do NOT toggle the 'flipped' class here so the
+    // card stays exactly as the user left it (front or back) under the cover.
 }
 
 let activeGenerationController = null;
@@ -711,7 +728,10 @@ async function triggerInterrogation() {
 
     // Show "Thinking..." on the button and an opaque cover over the flashcard.
     setGenerateButtonBusy(true, 'Thinking...');
-    setCardCover(true);
+    // Detect which side of the card is currently visible so the cover label
+    // reads "Generating Answer" when the user is on the answer side.
+    const cardIsFlipped = document.getElementById('flashcard').classList.contains('flipped');
+    setCardCover(true, cardIsFlipped ? 'Generating Answer...' : 'Generating Question...');
 
     // 2. Prepare the prompt with difficulty and component
     let scopeMetadata;
@@ -1270,6 +1290,93 @@ function copyText(event, side) {
         console.error('Failed to copy text: ', err);
         alert("Failed to copy text to clipboard.");
     });
+}
+
+// Report feedback for an inaccurate/incorrect flashcard. Reports are persisted
+// to localStorage so the admin dashboard can read them. A confirmation prompt
+// collects an optional reason from the user.
+//
+// A flashcard can only be reported once — the set of already-reported card ids
+// is kept in localStorage so repeat reports of the same card are blocked.
+const reportedCardIds = new Set(
+    (() => {
+        try {
+            return JSON.parse(localStorage.getItem('reportedCardIds') || '[]');
+        } catch (e) {
+            return [];
+        }
+    })()
+);
+
+function reportCard(event) {
+    event.stopPropagation();
+    if (executionPointerIndex === -1) {
+        showErrorModal('You need to generate a flashcard first before reporting.');
+        return;
+    }
+    const card = generatedCardsCollection[executionPointerIndex];
+
+    // Block duplicate reports of the same flashcard.
+    if (reportedCardIds.has(card.id)) {
+        showErrorModal('You have already reported this flashcard. Thank you for your feedback!');
+        return;
+    }
+
+    const reason = prompt(
+        'Report this flashcard as inaccurate? (Optional) Tell us what is wrong:',
+        ''
+    );
+    if (reason === null) return; // cancelled
+
+    const report = {
+        id: Date.now(),
+        timestamp: new Date().toISOString(),
+        chapter: card.label,
+        difficulty: card.difficulty,
+        component: card.component,
+        question: card.question,
+        answer: card.answer,
+        reason: (reason || '').trim()
+    };
+
+    // Track this card as reported so it cannot be reported again.
+    reportedCardIds.add(card.id);
+    try {
+        localStorage.setItem('reportedCardIds', JSON.stringify([...reportedCardIds]));
+    } catch (e) {
+        dbgError('reportCard', 'Failed to persist reported card ids', e);
+    }
+
+    let reports = [];
+    try {
+        reports = JSON.parse(localStorage.getItem('cardReports') || '[]');
+    } catch (e) {
+        reports = [];
+    }
+    reports.push(report);
+    localStorage.setItem('cardReports', JSON.stringify(reports));
+
+    // Also send the full report to the analytics/backend endpoint so it is
+    // centralized (all users' reports are stored on the server, not just in
+    // each browser's localStorage). The admin panel lists these after login.
+    // Best-effort: a failure here must not block the local report from saving.
+    try {
+        if (typeof trackEvent === 'function') {
+            trackEvent('card_report', {
+                id: report.id,
+                chapter: report.chapter,
+                difficulty: report.difficulty,
+                component: report.component,
+                question: report.question,
+                answer: report.answer,
+                reason: report.reason
+            });
+        }
+    } catch (e) {
+        dbgError('reportCard', 'Failed to send report to backend', e);
+    }
+
+    alert('Thank you! Your report has been logged for review.');
 }
 
 // Chatbot functionality

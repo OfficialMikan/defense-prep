@@ -78,7 +78,6 @@
             </div>
             <div class="chapter-viewer-toolbar">
                 <span id="chapterViewerSubtitle">Document viewer</span>
-                <button class="btn-proposal chapter-viewer-copy" onclick="copyChapterText()">Copy Text</button>
             </div>
             <div id="chapterViewerContent" class="chapter-viewer-content"></div>
         </div>
@@ -136,6 +135,7 @@
                 <button class="btn-clear" onclick="openModal()">Reset All</button>
                 <button class="btn-clear" onclick="clearFavorites()">Clear Favorites</button>
                 <button class="btn-export-pdf" onclick="exportToPDF()">Export to PDF</button>
+                <a class="btn-dashboard-link" href="admin.html">Admin Dashboard</a>
             </div>
         </div>
 
@@ -173,11 +173,14 @@
 
             <div class="flashcard-section">
                 <div class="flashcard-wrapper">
-                    <div class="flashcard" id="flashcard" onclick="performFlip()">
-                        <div class="loader" id="loader">
-                            <div class="loader-spinner"></div><span>Generating Question...</span>
-                        </div>
+                    <!-- Opaque loading cover. Kept OUTSIDE the flipping .flashcard
+                         so it is never inverted/mirrored when the card is on the
+                         answer side. It sits above the card and blocks taps. -->
+                    <div class="loader" id="loader">
+                        <div class="loader-spinner"></div><span id="loaderLabel">Generating Question...</span>
+                    </div>
 
+                    <div class="flashcard" id="flashcard" onclick="performFlip()">
                         <div class="card-face card-front">
                             <div class="card-tag" id="frontTag">Select Lesson</div>
                             <div class="card-text" id="frontText">Choose a proposal above. The panel will ask you a
@@ -186,6 +189,8 @@
                             <div class="btn-actions">
                                 <button class="btn-action btn-photo-action"
                                     onclick="captureAndSavePhoto(event)">📷</button>
+                                <button class="btn-action btn-report-action" onclick="reportCard(event)"
+                                    title="Report inaccurate content">🚩</button>
                                 <button class="btn-action btn-copy-action"
                                     onclick="copyText(event, 'front')">📋</button>
                                 <button class="btn-action btn-favorite-action"
@@ -200,6 +205,8 @@
                             <div class="btn-actions">
                                 <button class="btn-action btn-photo-action"
                                     onclick="captureAndSavePhoto(event)">📷</button>
+                                <button class="btn-action btn-report-action" onclick="reportCard(event)"
+                                    title="Report inaccurate content">🚩</button>
                                 <button class="btn-action btn-copy-action" onclick="copyText(event, 'back')">📋</button>
                                 <button class="btn-action btn-favorite-action"
                                     onclick="toggleFavoriteCurrent(event)">★</button>
@@ -215,18 +222,9 @@
 
             <div class="chapter-panel">
                 <div class="chapter-toolbar">
-                    <p>Chapter content is loaded from the folder-based research files and used for flashcards and the
-                        assistant.</p>
-                    <button class="upload-btn" id="refreshChapterBtn" onclick="refreshChapterFiles()">Refresh
-                        Files</button>
+                    <span class="chapter-toolbar-title">View Research Papers</span>
                 </div>
-                <div class="chapter-grid">
-                    <button class="chapter-btn active" data-chapter="1" onclick="selectChapter(1)">Chapter 1</button>
-                    <button class="chapter-btn" data-chapter="2" onclick="selectChapter(2)">Chapter 2</button>
-                    <button class="chapter-btn" data-chapter="3" onclick="selectChapter(3)">Chapter 3</button>
-                    <button class="chapter-btn" data-chapter="4" onclick="selectChapter(4)">Chapter 4</button>
-                    <button class="chapter-btn" data-chapter="5" onclick="selectChapter(5)">Chapter 5</button>
-                </div>
+                <div class="chapter-pdf-list" id="chapterPdfList"></div>
                 <div class="chapter-preview">
                     <div class="chapter-status" id="chapterStatus">Waiting for chapter content…</div>
                     <div class="chapter-preview-title" id="chapterPreviewTitle">Chapter 1</div>

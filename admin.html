@@ -204,6 +204,14 @@
             </div>
 
             <div class="card">
+                <h2>Card Reports (Reported Inaccurate Flashcards)</h2>
+                <p class="sub">These are flashcards users flagged as inaccurate. They come from the backend
+                    (all users) merged with any locally stored reports.</p>
+                <div id="reportsCount" class="msg"></div>
+                <div id="cardReports"></div>
+            </div>
+
+            <div class="card">
                 <h2>Recent Events</h2>
                 <table>
                     <thead>
@@ -282,10 +290,92 @@
                 const time = new Date(ev.timestamp).toLocaleString();
                 const details = ev.type === 'chat'
                     ? (ev.snippet || ev.message || '')
-                    : (ev.chapter ? 'Chapter ' + ev.chapter : ev.component || '');
+                    : (ev.type === 'card_report'
+                        ? (ev.reason ? 'Reported: ' + ev.reason : 'Reported flashcard')
+                        : (ev.chapter ? 'Chapter ' + ev.chapter : ev.component || ''));
                 tr.innerHTML = `<td>${time}</td><td>${ev.type}</td><td>${ev.device}</td><td>${ev.ip}</td><td>${escapeHtml(details)}</td>`;
                 tbody.appendChild(tr);
             });
+
+            renderCardReports(data.events || []);
+        }
+
+        // Render the "Card Reports" section: merge backend card_report events
+        // with any locally stored reports (from this browser), newest first.
+        function renderCardReports(events) {
+            const container = document.getElementById('cardReports');
+            const countEl = document.getElementById('reportsCount');
+            const reports = [];
+
+            // 1) Backend reports (all users).
+            (events || []).forEach((ev) => {
+                if (ev.type !== 'card_report') return;
+                reports.push({
+                    timestamp: ev.timestamp,
+                    chapter: ev.chapter,
+                    difficulty: ev.difficulty,
+                    component: ev.component,
+                    question: ev.question,
+                    answer: ev.answer,
+                    reason: ev.reason,
+                    source: 'Backend'
+                });
+            });
+
+            // 2) Locally stored reports (this browser).
+            try {
+                const local = JSON.parse(localStorage.getItem('cardReports') || '[]');
+                (local || []).forEach((r) => {
+                    reports.push({
+                        timestamp: r.timestamp,
+                        chapter: r.chapter,
+                        difficulty: r.difficulty,
+                        component: r.component,
+                        question: r.question,
+                        answer: r.answer,
+                        reason: r.reason,
+                        source: 'Local'
+                    });
+                });
+            } catch (e) { /* ignore malformed local reports */ }
+
+            reports.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+            countEl.textContent = reports.length
+                ? reports.length + ' reported flashcard(s).'
+                : 'No reported flashcards yet.';
+
+            if (reports.length === 0) {
+                container.innerHTML = '<p style="color:#6b7280">No reports yet.</p>';
+                return;
+            }
+
+            container.innerHTML = `
+        <table>
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Chapter</th>
+                    <th>Difficulty</th>
+                    <th>Reason</th>
+                    <th>Question</th>
+                    <th>Answer</th>
+                    <th>Source</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${reports.map((r) => `
+                    <tr>
+                        <td>${new Date(r.timestamp).toLocaleString()}</td>
+                        <td>${escapeHtml(r.chapter || '')}</td>
+                        <td>${escapeHtml(r.difficulty || '')}</td>
+                        <td>${escapeHtml(r.reason || 'No reason given')}</td>
+                        <td>${escapeHtml(r.question || '')}</td>
+                        <td>${escapeHtml(r.answer || '')}</td>
+                        <td>${escapeHtml(r.source || '')}</td>
+                    </tr>`).join('')}
+            </tbody>
+        </table>`;
         }
 
         function renderMap(mapObj) {
