@@ -41,6 +41,55 @@ body {
     position: relative;
 }
 
+/* ---------- Accessibility ---------- */
+.skip-link {
+    position: absolute;
+    top: -100%;
+    left: 16px;
+    z-index: 10000;
+    padding: 10px 16px;
+    background: #111;
+    color: #fff;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 700;
+}
+
+.skip-link:focus {
+    top: 16px;
+    outline: 3px solid var(--duo-yellow);
+    outline-offset: 2px;
+}
+
+:focus-visible {
+    outline: 3px solid var(--duo-blue);
+    outline-offset: 2px;
+}
+
+.flashcard:focus-visible {
+    outline: 3px solid var(--duo-yellow);
+    outline-offset: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+
+    #intro-loader {
+        transition: none !important;
+    }
+
+    .flashcard {
+        transition: none !important;
+    }
+}
+
 /* Apply dark mode background/text to full-page containers that use hardcoded colors */
 .main-content {
     background: #f7f7f7;
@@ -990,6 +1039,41 @@ pre.report-detail {
     display: flex;
     flex-direction: column;
     gap: 10px;
+}
+
+/* "View Research Papers" list — one wide, tappable button per chapter. */
+.chapter-pdf-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+/* Make the chapter preview body itself interactive (tap to open the viewer). */
+#chapterContentArea {
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+#chapterContentArea:hover {
+    border-color: var(--duo-blue);
+    background: #f2faff;
+}
+
+:root.dark-mode #chapterContentArea:hover {
+    background: #26303a;
+    border-color: var(--duo-blue);
+}
+
+/* Small hint that the preview is clickable */
+#chapterContentArea .chapter-click-hint {
+    display: block;
+    margin-top: 12px;
+    font-size: 0.8rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--duo-blue);
 }
 
 /* Wide "View PDF" button — intentionally wider than it is tall. Only when

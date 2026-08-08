@@ -1,0 +1,16 @@
+{
+  "name": "defense-prep",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AI-powered research panel defense simulator (Group 4)",
+  "scripts": {
+    "dev": "npx vercel dev",
+    "start": "npx http-server -p 8080 -c-1 ."
+  },
+  "dependencies": {
+    "@vercel/kv": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

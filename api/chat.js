@@ -79,9 +79,12 @@ const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
 // Hard cap on how long we are willing to wait across all retries/fallbacks.
 const MAX_TOTAL_RETRY_MS = 2500;
 
-// Keep the chapter context bounded so we don't blow the token budget / TPM.
-// 4000 characters is roughly ~1k tokens of input.
-const MAX_CHAPTER_CHARS = 4000;
+// Keep the chatbot chapter context bounded so we don't blow the token budget.
+// The client (app.js) retrieves + sends relevant sections (a couple of
+// sections, typically up to ~12k chars) so this cap is aligned with the
+// client's retrieval size rather than a hard 4k ceiling that could silently
+// drop relevant context. ~12k chars is roughly ~3k tokens of input.
+const MAX_CHAPTER_CHARS = 12000;
 
 // Cap on the flashcard prompt (which embeds chapter context + instructions).
 // The client (app.js) truncates its chapter dump to MAX_FLASHCARD_DUMP_CHARS

@@ -6,11 +6,14 @@
     <meta name="viewport"
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Group 4 - Title Defense Training</title>
+    <meta name="description"
+        content="AI-powered research panel defense simulator for Group 4. Practice thesis / capstone title defense with AI-generated questions, a chatbot coach, and offline support.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js"></script>
+    <!-- Heavy libraries (html2canvas, jsPDF, mammoth) are lazy-loaded on demand
+         by app.js so they don't block initial render. -->
     <script src="chapter-config.js"></script>
     <script>
         // Register service worker for offline support.
@@ -22,16 +25,43 @@
             });
         }
 
-        // Lightweight analytics tracker (POSTs events to /api/analytics).
-        function trackEvent(type, data) {
+        // Anonymous identifier for per-user analytics (persisted locally).
+        function getUserId() {
             try {
+                let id = localStorage.getItem('dp_user_id');
+                if (!id) {
+                    id = 'u_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10);
+                    localStorage.setItem('dp_user_id', id);
+                }
+                return id;
+            } catch (e) {
+                return 'anonymous';
+            }
+        }
+
+        // Session id — one per page load, so we can group a user's actions.
+        const sessionId = 's_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+
+        // Lightweight analytics tracker (POSTs events to /api/analytics).
+        // Always attaches the anonymous userId + sessionId + chapter so the
+        // admin panel can show per-user info and chat logs.
+        function trackEvent(type, data, chapter) {
+            try {
+                const payload = {
+                    type,
+                    data: Object.assign({
+                        userId: getUserId(),
+                        sessionId: sessionId,
+                        chapter: chapter || (window.currentChapter || 1)
+                    }, data || {})
+                };
                 (navigator.sendBeacon && navigator.sendBeacon(
                     '/api/analytics',
-                    new Blob([JSON.stringify({ type, data })], { type: 'application/json' })
+                    new Blob([JSON.stringify(payload)], { type: 'application/json' })
                 )) || fetch('/api/analytics', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ type, data }),
+                    body: JSON.stringify(payload),
                     keepalive: true
                 }).catch(() => { });
             } catch (e) { /* analytics is best-effort */ }
@@ -40,6 +70,8 @@
 </head>
 
 <body>
+    <!-- Accessibility: skip link for keyboard users -->
+    <a class="skip-link" href="#main">Skip to main content</a>
 
     <div id="intro-loader">
         <div class="anim-number">GROUP 4</div>
@@ -74,7 +106,7 @@
         <div class="chapter-viewer-modal" onclick="event.stopPropagation()">
             <div class="chapter-viewer-header">
                 <h3 id="chapterViewerTitle">Chapter</h3>
-                <button class="chapter-viewer-close" onclick="closeChapterViewer()">×</button>
+                <button class="chapter-viewer-close" onclick="closeChapterViewer()" aria-label="Close chapter viewer">×</button>
             </div>
             <div class="chapter-viewer-toolbar">
                 <span id="chapterViewerSubtitle">Document viewer</span>
@@ -148,9 +180,9 @@
             </div>
         </div>
 
-        <div class="main-content">
+        <div class="main-content" id="main" role="main" aria-label="Main training content">
             <!-- Sidebar Toggle Button -->
-            <button class="btn-toggle-sidebar" onclick="toggleSidebar()">☰</button>
+            <button class="btn-toggle-sidebar" onclick="toggleSidebar()" aria-label="Toggle history sidebar">☰</button>
 
             <div class="meta-header">
                 <h1>Group 4 Training</h1>
@@ -159,25 +191,24 @@
 
             <div class="selectors-container">
                 <div class="selectors-title">Select Difficulty</div>
-                <div class="difficulty-selector">
-                    <button class="btn-difficulty btn-easy" onclick="setDifficulty('easy')">Easy</button>
-                    <button class="btn-difficulty btn-medium" onclick="setDifficulty('medium')">Medium</button>
-                    <button class="btn-difficulty btn-hard" onclick="setDifficulty('hard')">Hard</button>
+                <div class="difficulty-selector" role="group" aria-label="Select difficulty">
+                    <button class="btn-difficulty btn-easy" onclick="setDifficulty('easy')" aria-pressed="false">Easy</button>
+                    <button class="btn-difficulty btn-medium" onclick="setDifficulty('medium')" aria-pressed="true">Medium</button>
+                    <button class="btn-difficulty btn-hard" onclick="setDifficulty('hard')" aria-pressed="false">Hard</button>
                 </div>
 
                 <div class="selectors-title">Select Chapter</div>
                 <div class="component-selector">
                     <select class="component-dropdown" id="chapterDropdown"
-                        onchange="setChapterFromDropdown()"></select>
+                        onchange="setChapterFromDropdown()" aria-label="Select chapter"></select>
                 </div>
 
                 <div class="selectors-title">Select Research Component</div>
                 <div class="component-selector">
                     <select class="component-dropdown" id="componentDropdown"
-                        onchange="setComponentFromDropdown()"></select>
+                        onchange="setComponentFromDropdown()" aria-label="Select research component"></select>
                 </div>
-                <div class="component-hint" id="componentHint">Chapter 1 and Chapter 2 options are available. Chapters
-                    3–5 are unavailable for now.</div>
+                <div class="component-hint" id="componentHint" aria-live="polite">Loading chapter options…</div>
             </div>
 
             <div class="flashcard-section">
@@ -185,25 +216,27 @@
                     <!-- Opaque loading cover. Kept OUTSIDE the flipping .flashcard
                          so it is never inverted/mirrored when the card is on the
                          answer side. It sits above the card and blocks taps. -->
-                    <div class="loader" id="loader">
+                    <div class="loader" id="loader" role="status" aria-live="polite" aria-busy="true">
                         <div class="loader-spinner"></div><span id="loaderLabel">Generating Question...</span>
                     </div>
 
-                    <div class="flashcard" id="flashcard" onclick="performFlip()">
+                    <div class="flashcard" id="flashcard" onclick="performFlip()" role="button" tabindex="0"
+                        aria-label="Flashcard. Press Enter or Space to flip."
+                        onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();performFlip();}">
                         <div class="card-face card-front">
                             <div class="card-tag" id="frontTag">Select Lesson</div>
                             <div class="card-text" id="frontText">Choose a proposal above. The panel will ask you a
                                 question about your research.</div>
                             <div class="card-hint">Click to check</div>
                             <div class="btn-actions">
-                                <button class="btn-action btn-photo-action"
-                                    onclick="captureAndSavePhoto(event)">📷</button>
+                                <button class="btn-action btn-photo-action" onclick="captureAndSavePhoto(event)"
+                                    aria-label="Save flashcard as photo">📷</button>
                                 <button class="btn-action btn-report-action" onclick="reportCard(event)"
-                                    title="Report inaccurate content">🚩</button>
-                                <button class="btn-action btn-copy-action"
-                                    onclick="copyText(event, 'front')">📋</button>
-                                <button class="btn-action btn-favorite-action"
-                                    onclick="toggleFavoriteCurrent(event)">★</button>
+                                    title="Report inaccurate content" aria-label="Report inaccurate content">🚩</button>
+                                <button class="btn-action btn-copy-action" onclick="copyText(event, 'front')"
+                                    aria-label="Copy flashcard text">📋</button>
+                                <button class="btn-action btn-favorite-action" onclick="toggleFavoriteCurrent(event)"
+                                    aria-label="Toggle favorite">★</button>
                             </div>
                         </div>
 
@@ -212,13 +245,14 @@
                             <div class="card-text" id="backText">The researchers' defense answer will appear here.</div>
                             <div class="card-hint">Click to flip</div>
                             <div class="btn-actions">
-                                <button class="btn-action btn-photo-action"
-                                    onclick="captureAndSavePhoto(event)">📷</button>
+                                <button class="btn-action btn-photo-action" onclick="captureAndSavePhoto(event)"
+                                    aria-label="Save flashcard as photo">📷</button>
                                 <button class="btn-action btn-report-action" onclick="reportCard(event)"
-                                    title="Report inaccurate content">🚩</button>
-                                <button class="btn-action btn-copy-action" onclick="copyText(event, 'back')">📋</button>
-                                <button class="btn-action btn-favorite-action"
-                                    onclick="toggleFavoriteCurrent(event)">★</button>
+                                    title="Report inaccurate content" aria-label="Report inaccurate content">🚩</button>
+                                <button class="btn-action btn-copy-action" onclick="copyText(event, 'back')"
+                                    aria-label="Copy flashcard text">📋</button>
+                                <button class="btn-action btn-favorite-action" onclick="toggleFavoriteCurrent(event)"
+                                    aria-label="Toggle favorite">★</button>
                             </div>
                         </div>
                     </div>

@@ -73,47 +73,51 @@ function loadChapterState() {
     }
 }
 
-const chapterComponentOptions = {
-    1: [
+// Single source of truth for chapter component options. Reads from
+// chapter-config.js (window.CHAPTER_CONFIG) with a generic fallback so the
+// app and the config file can never drift out of sync.
+function getChapterOptions(chapterNumber) {
+    const cfg = window.CHAPTER_CONFIG || {};
+    const chapter = cfg[chapterNumber];
+    if (chapter && Array.isArray(chapter.components) && chapter.components.length) {
+        return chapter.components;
+    }
+    return (window.GENERIC_COMPONENTS || [
         { key: 'all', name: 'All Components (Random)', available: true },
-        { key: 'title', name: 'Title', available: true },
         { key: 'introduction', name: 'Introduction', available: true },
         { key: 'research_design', name: 'Research Design', available: true },
         { key: 'respondents', name: 'Respondents', available: true },
-        { key: 'motivation', name: 'Motivation', available: true },
-        { key: 'research_gap', name: 'Research Gap', available: true },
-        { key: 'statement', name: 'Statement of Problem', available: true },
         { key: 'method', name: 'Research Method', available: true },
         { key: 'references', name: 'References', available: true }
-    ],
-    2: [
-        { key: 'all', name: 'All Components (Random)', available: true },
-        { key: 'research_design', name: 'Research Design', available: true },
-        { key: 'respondents_participants', name: 'Respondents/Participants', available: true },
-        { key: 'instruments', name: 'Instruments', available: true },
-        { key: 'ethical_considerations', name: 'Ethical Considerations', available: true },
-        { key: 'data_collection', name: 'Data Collection', available: true },
-        { key: 'data_analysis', name: 'Data Analysis/Statistical Treatment of Data', available: true },
-        { key: 'references', name: 'References', available: true }
-    ],
-    3: [
-        { key: 'unavailable', name: 'Chapter 3 is unavailable for now', available: false }
-    ],
-    4: [
-        { key: 'unavailable', name: 'Chapter 4 is unavailable for now', available: false }
-    ],
-    5: [
-        { key: 'unavailable', name: 'Chapter 5 is unavailable for now', available: false }
-    ]
-};
+    ]);
+}
+
+// Whether a chapter should appear in the UI at all. Chapters 1-2 are always
+// available; 3-5 depend on APP_CONFIG.chapterAutoDetect (default true) and
+// the presence of an uploaded file.
+function isChapterAvailable(chapterNumber) {
+    if (chapterNumber <= 2) return true;
+    const autoDetect = window.APP_CONFIG && window.APP_CONFIG.chapterAutoDetect !== false;
+    if (!autoDetect) return false;
+    return Boolean(chapterUploadState && chapterUploadState.chapters && chapterUploadState.chapters[chapterNumber]);
+}
 
 let generatedCardsCollection = [];
 let executionPointerIndex = -1;
 let currentDifficulty = 'medium';
 let currentComponent = 'all';
 let currentChapter = 1;
+// Exposed for analytics (index.html trackEvent).
+window.currentChapter = currentChapter;
 let chatHistory = [];
-let favorites = [];
+
+// Validate flashcard JSON matches the same required fields enforced server-side.
+function validateFlashcardCandidate(candidate) {
+    if (!candidate || typeof candidate !== 'object') return false;
+    if (typeof candidate.question !== 'string' || !candidate.question.trim()) return false;
+    if (typeof candidate.answer !== 'string' || !candidate.answer.trim()) return false;
+    return true;
+}
 
 // Track recently generated questions to avoid repeats in a session.
 const recentQuestions = [];
@@ -142,6 +146,47 @@ function rememberRecentQuestion(question) {
 
 // Increase storage limit
 const MAX_HISTORY_SIZE = 100;
+
+// Lazy-load a heavy third-party library on first use so it doesn't block
+// initial page render. Fetches the script from the given CDN URL and resolves
+// once it has loaded. Uses a cached promise so the same library is only ever
+// fetched once per session.
+const loadedLibraries = {};
+function loadLibrary(url) {
+    if (loadedLibraries[url]) return loadedLibraries[url];
+    loadedLibraries[url] = new Promise((resolve, reject) => {
+        const existing = document.querySelector(`script[src="${url}"]`);
+        if (existing && existing.dataset.loaded) {
+            resolve();
+            return;
+        }
+        const script = document.createElement('script');
+        script.src = url;
+        script.async = true;
+        script.onload = () => {
+            script.dataset.loaded = '1';
+            resolve();
+        };
+        script.onerror = () => {
+            delete loadedLibraries[url];
+            reject(new Error(`Failed to load a required library: ${url}`));
+        };
+        document.head.appendChild(script);
+    });
+}
+
+// Convenience wrappers matching the libraries referenced throughout the app.
+// These point at the same CDN URLs the service worker pre-caches so the app
+// still works offline once the library has been fetched once.
+function loadHtml2Canvas() {
+    return loadLibrary('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+}
+function loadJsPdf() {
+    return loadLibrary('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+}
+function loadMammoth() {
+    return loadLibrary('https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js');
+}
 
 // Bound the chapter context sent to the AI so we don't blow the token budget.
 // The full chapter is retained in memory (chapterUploadState.chapters) but only
@@ -189,12 +234,6 @@ try {
     if (savedChatHistory) {
         chatHistory = JSON.parse(savedChatHistory);
     }
-
-    // Load favorites
-    const savedFavorites = localStorage.getItem('favorites');
-    if (savedFavorites) {
-        favorites = JSON.parse(savedFavorites);
-    }
 } catch (e) {
     console.error("Local recovery error:", e);
 }
@@ -219,8 +258,10 @@ window.addEventListener('DOMContentLoaded', () => {
         populateChapterPreview();
     });
 
-    // Explicitly hide the loader on page load to ensure it's not stuck
-    document.getElementById('loader').style.display = 'none';
+    bindChapterPreviewClick();
+    if (typeof trackEvent === 'function') {
+        trackEvent('view', { page: 'index' });
+    }
 
     // Load dark mode preference
     const savedDarkMode = localStorage.getItem('darkMode');
@@ -231,11 +272,20 @@ window.addEventListener('DOMContentLoaded', () => {
         const mainContent = document.querySelector('.main-content');
         mainContent.style.background = '#1a1a1a';
     }
+
+    // Explicitly hide the loader on page load to ensure it's not stuck
+    const pageLoader = document.getElementById('loader');
+    if (pageLoader) {
+        pageLoader.style.display = 'none';
+        pageLoader.setAttribute('aria-busy', 'false');
+    }
+    setDifficulty(currentDifficulty);
 });
 
 function selectChapter(chapterNumber) {
     chapterUploadState.activeChapter = chapterNumber;
     currentChapter = chapterNumber;
+    window.currentChapter = chapterNumber;
     populateChapterDropdown();
     populateComponentDropdown();
     populateChapterPreview();
@@ -245,25 +295,37 @@ function populateChapterDropdown() {
     const dropdown = document.getElementById('chapterDropdown');
     if (!dropdown) return;
 
+    const prevValue = currentChapter;
     dropdown.innerHTML = '';
     [1, 2, 3, 4, 5].forEach((chapterNumber) => {
         const opt = document.createElement('option');
         opt.value = chapterNumber;
-        opt.textContent = `Chapter ${chapterNumber}`;
-        if (chapterNumber > 2) {
-            opt.disabled = true;
-            opt.textContent = `Chapter ${chapterNumber} (Unavailable)`;
-        }
+        const available = isChapterAvailable(chapterNumber);
+        opt.textContent = available ? `Chapter ${chapterNumber}` : `Chapter ${chapterNumber} (Unavailable)`;
+        opt.disabled = !available;
         dropdown.appendChild(opt);
     });
 
+    // If the current chapter is no longer available, fall back to chapter 1.
+    if (!isChapterAvailable(currentChapter)) {
+        currentChapter = 1;
+        chapterUploadState.activeChapter = 1;
+        window.currentChapter = 1;
+    }
     dropdown.value = currentChapter;
+
+    // If the dropdown's value changed, we cleared the disabled gate — return
+    // to the previous value only if it was still available.
+    if (prevValue !== currentChapter) {
+        populateComponentDropdown();
+        populateChapterPreview();
+    }
 }
 
 function setChapterFromDropdown() {
     const dropdown = document.getElementById('chapterDropdown');
     const selectedChapter = Number(dropdown.value);
-    if (!Number.isNaN(selectedChapter) && selectedChapter <= 2) {
+    if (!Number.isNaN(selectedChapter) && isChapterAvailable(selectedChapter)) {
         selectChapter(selectedChapter);
     }
 }
@@ -273,7 +335,7 @@ function populateComponentDropdown() {
     const hint = document.getElementById('componentHint');
     if (!dropdown) return;
 
-    const availableOptions = chapterComponentOptions[currentChapter] || chapterComponentOptions[1];
+    const availableOptions = getChapterOptions(currentChapter);
     dropdown.innerHTML = '';
 
     availableOptions.forEach((option) => {
@@ -293,12 +355,14 @@ function populateComponentDropdown() {
     dropdown.value = currentComponent;
 
     if (hint) {
-        if (currentChapter === 1) {
-            hint.textContent = 'Chapter 1 components are available. Chapter 2 options are also ready.';
-        } else if (currentChapter === 2) {
-            hint.textContent = 'Chapter 2 components are available. Chapters 3–5 are unavailable for now.';
+        const enabled = availableOptions.filter((o) => o.available && o.key !== 'all');
+        const enabledNames = enabled.map((o) => o.name).join(' · ');
+        if (enabled.length) {
+            hint.textContent = `${enabledNames} are available for this chapter.`;
+        } else if (currentChapter <= 2) {
+            hint.textContent = `Chapter ${currentChapter} components are ready.`;
         } else {
-            hint.textContent = 'Chapters 3–5 are unavailable for now.';
+            hint.textContent = `Chapter ${currentChapter} still needs an uploaded file.`;
         }
     }
 }
@@ -562,16 +626,28 @@ function buildChapterPreviewText(text) {
     return html;
 }
 
+let chapterPreviewClickBound = false;
+function bindChapterPreviewClick() {
+    if (chapterPreviewClickBound) return;
+    const contentArea = document.getElementById('chapterContentArea');
+    if (!contentArea) return;
+    contentArea.addEventListener('click', () => {
+        openChapterViewer(chapterUploadState.activeChapter);
+    });
+    chapterPreviewClickBound = true;
+}
+
 function populateChapterPreview() {
     const contentArea = document.getElementById('chapterContentArea');
     const pdfList = document.getElementById('chapterPdfList');
     const activeChapter = chapterUploadState.activeChapter;
     const scope = getChapterScope(activeChapter);
-    const availableChapters = [1, 2];
+    const availableChapters = [1, 2, 3, 4, 5].filter((n) => isChapterAvailable(n));
 
     // Build the "View Chapter N" buttons — one wide, tappable button per
-    // chapter that has uploaded content. Always show chapters 1 and 2 so the
-    // previews are clickable even before the txt files finish loading.
+    // available chapter. Chapters 1-2 are always present so the previews are
+    // clickable even before the txt files finish loading; 3-5 appear once
+    // their files exist (chapterAutoDetect).
     if (pdfList) {
         pdfList.innerHTML = '';
         availableChapters.forEach((chapterNumber) => {
@@ -587,35 +663,9 @@ function populateChapterPreview() {
     // Show the chapter's formatted text preview directly in the content area.
     if (contentArea) {
         contentArea.innerHTML = buildChapterPreviewText(scope.dataDump);
-
-        // Keep the preview area clickable so tapping it also opens the viewer.
-        contentArea.onclick = () => {
-            openChapterViewer(activeChapter);
-        };
+        bindChapterPreviewClick();
     }
     saveChapterState();
-}
-
-function buildChapterSummary(text) {
-    const cleanText = normalizeChapterText(text);
-    if (!cleanText) {
-        return '<div class="chapter-empty">This chapter file is empty.</div>';
-    }
-
-    const paragraphBlocks = cleanText
-        .split(/\n+/)
-        .map((part) => part.trim())
-        .filter(Boolean);
-    const previewText = paragraphBlocks.slice(0, 3).join(' ');
-    const clippedText = previewText.length > 1400 ? `${previewText.slice(0, 1400)}…` : previewText;
-
-    return `
-    <div class="chapter-summary">
-        <div class="chapter-summary-card">
-            <p>${clippedText}</p>
-        </div>
-    </div>
-    `;
 }
 
 // Render the appropriate content into the chapter viewer based on the active tab.
@@ -679,6 +729,7 @@ async function openChapterViewer(chapterNumber = chapterUploadState.activeChapte
 
     chapterUploadState.activeChapter = chapterNumber;
     currentChapter = chapterNumber;
+    window.currentChapter = chapterNumber;
     populateChapterDropdown();
     populateComponentDropdown();
     populateChapterPreview();
@@ -697,8 +748,15 @@ async function openChapterViewer(chapterNumber = chapterUploadState.activeChapte
     overlay.style.display = 'flex';
     document.body.style.overflow = 'hidden';
 
-    // Try to load the freshest text from the .txt file (fall back to cached).
     const textPath = scope.textPath || `/data/chapters/chapter-${chapterNumber}.txt`;
+    const pdfPath = scope.pdfPath || `/data/chapters/chapter-${chapterNumber}.pdf`;
+    const docxPath = scope.docxPath || `/data/chapters/chapter-${chapterNumber}.docx`;
+
+    // Warm the cache for PDF/DOCX tabs so they load offline after first view.
+    fetch(pdfPath, { cache: 'force-cache' }).catch(() => { });
+    fetch(docxPath, { cache: 'force-cache' }).catch(() => { });
+
+    // Try to load the freshest text from the .txt file (fall back to cached).
     try {
         const textResponse = await fetch(textPath, { cache: 'no-store' });
         if (textResponse.ok) {
@@ -710,6 +768,9 @@ async function openChapterViewer(chapterNumber = chapterUploadState.activeChapte
     }
 
     renderChapterViewerContent();
+    if (typeof trackEvent === 'function') {
+        trackEvent('chapter_view', { chapter: scope.title });
+    }
 }
 
 function closeChapterViewer() {
@@ -757,14 +818,62 @@ async function refreshChapterFiles() {
     populateChapterPreview();
 }
 
-async function loadChapterFilesFromFolder() {
-    const chapterFiles = [
+// Build the standard list of chapter file paths for chapters 1-5.
+function getChapterFilePaths() {
+    return [
         { number: 1, textPath: '/data/chapters/chapter-1.txt', pdfPath: '/data/chapters/chapter-1.pdf', docxPath: '/data/chapters/chapter-1.docx' },
         { number: 2, textPath: '/data/chapters/chapter-2.txt', pdfPath: '/data/chapters/chapter-2.pdf', docxPath: '/data/chapters/chapter-2.docx' },
         { number: 3, textPath: '/data/chapters/chapter-3.txt', pdfPath: '/data/chapters/chapter-3.pdf', docxPath: '/data/chapters/chapter-3.docx' },
         { number: 4, textPath: '/data/chapters/chapter-4.txt', pdfPath: '/data/chapters/chapter-4.pdf', docxPath: '/data/chapters/chapter-4.docx' },
         { number: 5, textPath: '/data/chapters/chapter-5.txt', pdfPath: '/data/chapters/chapter-5.pdf', docxPath: '/data/chapters/chapter-5.docx' }
     ];
+}
+
+// Lazily ensure a single chapter's content is loaded into memory, then refresh
+// the UI. Used by the Refresh Files button and auto-detection so the app only
+// fetches what's actually needed instead of all five chapters at once.
+async function loadChapterEntry(number) {
+    const entry = getChapterFilePaths().find((e) => e.number === number);
+    if (!entry) return;
+    try {
+        const textResponse = await fetch(entry.textPath, { cache: 'no-store' });
+        if (textResponse.ok) {
+            const text = (await textResponse.text()).trim();
+            if (text) {
+                chapterUploadState.chapters[number] = {
+                    title: `Chapter ${number} `,
+                    dataDump: normalizeChapterText(text),
+                    pdfPath: entry.pdfPath,
+                    textPath: entry.textPath,
+                    docxPath: entry.docxPath
+                };
+                saveChapterState();
+                return;
+            }
+        }
+        const docxResponse = await fetch(entry.docxPath, { cache: 'no-store' });
+        if (!docxResponse.ok) return;
+        await loadMammoth();
+        const arrayBuffer = await docxResponse.arrayBuffer();
+        const extracted = await mammoth.extractRawText({ arrayBuffer });
+        const text = extracted.value || '';
+        if (text.trim()) {
+            chapterUploadState.chapters[number] = {
+                title: `Chapter ${number} `,
+                dataDump: normalizeChapterText(text),
+                pdfPath: entry.pdfPath,
+                textPath: entry.textPath,
+                docxPath: entry.docxPath
+            };
+            saveChapterState();
+        }
+    } catch (error) {
+        console.warn(`Could not load ${entry.textPath} `, error);
+    }
+}
+
+async function loadChapterFilesFromFolder() {
+    const chapterFiles = getChapterFilePaths();
 
     const loadedChapters = {};
     for (const entry of chapterFiles) {
@@ -786,6 +895,7 @@ async function loadChapterFilesFromFolder() {
 
             const docxResponse = await fetch(entry.docxPath, { cache: 'no-store' });
             if (!docxResponse.ok) continue;
+            await loadMammoth();
             const arrayBuffer = await docxResponse.arrayBuffer();
             const extracted = await mammoth.extractRawText({ arrayBuffer });
             const text = extracted.value || '';
@@ -804,8 +914,16 @@ async function loadChapterFilesFromFolder() {
     }
 
     if (Object.keys(loadedChapters).length) {
-        chapterUploadState.chapters = loadedChapters;
-        chapterUploadState.activeChapter = 1;
+        // Merge fresh results into existing state, and PRESERVE the currently
+        // selected chapter (if it is still available) instead of always forcing
+        // chapter 1. This way a refresh never yanks the user back to the start.
+        if (!chapterUploadState.chapters) chapterUploadState.chapters = {};
+        Object.assign(chapterUploadState.chapters, loadedChapters);
+        if (!isChapterAvailable(chapterUploadState.activeChapter)) {
+            for (let n = 1; n <= 5; n++) {
+                if (isChapterAvailable(n)) { chapterUploadState.activeChapter = n; break; }
+            }
+        }
         saveChapterState();
     }
 }
@@ -864,6 +982,7 @@ function setDifficulty(difficulty) {
         btn.style.opacity = '0.7';
         btn.style.transform = 'none';
         btn.style.borderBottomWidth = '4px';
+        btn.setAttribute('aria-pressed', 'false');
     });
 
     const selectedBtn = document.querySelector(`.btn-${difficulty}`);
@@ -871,6 +990,7 @@ function setDifficulty(difficulty) {
         selectedBtn.style.opacity = '1';
         selectedBtn.style.transform = 'translateY(2px)';
         selectedBtn.style.borderBottomWidth = '2px';
+        selectedBtn.setAttribute('aria-pressed', 'true');
     }
 }
 
@@ -880,7 +1000,7 @@ function setComponentFromDropdown() {
 }
 
 function getComponentDisplayName() {
-    const selected = (chapterComponentOptions[currentChapter] || chapterComponentOptions[1]).find((option) => option.key === currentComponent);
+    const selected = getChapterOptions(currentChapter).find((option) => option.key === currentComponent);
     return selected?.name || 'the selected component';
 }
 
@@ -941,6 +1061,7 @@ function setCardCover(visible, label) {
     const loader = document.getElementById('loader');
     if (!loader) return;
     loader.style.display = visible ? 'flex' : 'none';
+    loader.setAttribute('aria-busy', visible ? 'true' : 'false');
     const labelEl = document.getElementById('loaderLabel');
     if (labelEl) {
         labelEl.textContent = label || DEFAULT_COVER_LABEL;
@@ -950,9 +1071,8 @@ function setCardCover(visible, label) {
     // card stays exactly as the user left it (front or back) under the cover.
 }
 
-let activeGenerationController = null;
-
 async function triggerInterrogation() {
+    try {
     // 1. Check if history limit reached
     if (generatedCardsCollection.length >= MAX_HISTORY_SIZE) {
         alert('Your lesson history is getting very full! Please Reset Levels to keep performance fast. Maximum ' + MAX_HISTORY_SIZE + ' items allowed.');
@@ -993,7 +1113,7 @@ async function triggerInterrogation() {
 
     // Determine the effective component to query. When "all", pick one at
     // random so the generated card varies across sections.
-    const availableComponents = (chapterComponentOptions[currentChapter] || chapterComponentOptions[1])
+    const availableComponents = getChapterOptions(currentChapter)
         .filter((option) => option.available && option.key !== 'all');
     let effectiveComponentKey = currentComponent;
     if (effectiveComponentKey === 'all' || !availableComponents.some((o) => o.key === effectiveComponentKey)) {
@@ -1119,7 +1239,7 @@ Now, as a panelist, ${randomAngle}.${difficultyPrompt} ${componentPrompt} Base y
                 }
             }
 
-            if (!candidate.question || !candidate.answer) {
+            if (!validateFlashcardCandidate(candidate)) {
                 throw new Error("AI response missing question or answer");
             }
 
@@ -1183,6 +1303,12 @@ Now, as a panelist, ${randomAngle}.${difficultyPrompt} ${componentPrompt} Base y
     syncCardDisplaySurface();
     if (typeof trackEvent === 'function') {
         trackEvent('flashcard', { chapter: scopeMetadata.title, difficulty: currentDifficulty, component: currentComponent });
+    }
+    } catch (unexpected) {
+        dbgError('triggerInterrogation', unexpected);
+        setGenerateButtonBusy(false);
+        setCardCover(false);
+        showErrorModal(unexpected.message || 'Something went wrong. Please try again.');
     }
 }
 
@@ -1370,9 +1496,17 @@ function executeReset() {
     }
 }
 
-function exportToPDF() {
+async function exportToPDF() {
     if (generatedCardsCollection.length === 0) {
         alert("No flashcards to export!");
+        return;
+    }
+
+    // Lazy-load jsPDF on first use so it doesn't block initial render.
+    try {
+        await loadJsPdf();
+    } catch (e) {
+        showErrorModal(e.message);
         return;
     }
 
@@ -1477,6 +1611,9 @@ function exportToPDF() {
 
     // Save the PDF
     doc.save(`research-defense-practice-${new Date().toISOString().slice(0, 10)}.pdf`);
+    if (typeof trackEvent === 'function') {
+        trackEvent('export_pdf', { count: generatedCardsCollection.length });
+    }
 }
 
 async function captureAndSavePhoto(event) {
@@ -1501,11 +1638,21 @@ async function captureAndSavePhoto(event) {
     const exportZone = document.getElementById('photo-export-zone');
 
     try {
+        // Lazy-load html2canvas on first use so it doesn't block initial render.
+        try {
+            await loadHtml2Canvas();
+        } catch (e) {
+            alert(e.message);
+            return;
+        }
         const canvas = await html2canvas(exportZone, { backgroundColor: '#ffffff', scale: 2 });
         const link = document.createElement('a');
         link.download = `ResearchDefense_Q${executionPointerIndex + 1}.png`;
         link.href = canvas.toDataURL("image/png");
         link.click();
+        if (typeof trackEvent === 'function') {
+            trackEvent('export_photo', { chapter: currentCard.label });
+        }
     } catch (error) {
         console.error("Photo Capture Failed:", error);
         alert("Failed to save photo. Please try again.");
@@ -1749,6 +1896,14 @@ async function sendMessage() {
         chatHistory.push({ role: 'user', content: message });
         chatHistory.push({ role: 'assistant', content: answer });
         localStorage.setItem('chatHistory', JSON.stringify(chatHistory));
+
+        if (typeof trackEvent === 'function') {
+            trackEvent('chat', {
+                message: message.slice(0, 500),
+                botSnippet: answer.slice(0, 500),
+                chapter: scopeMetadata.title
+            });
+        }
 
     } catch (error) {
         typingIndicator.remove();

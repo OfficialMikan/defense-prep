@@ -1,94 +1,88 @@
 # Group 4 — Title Defense Training
 
 An AI-powered research panel defense simulator. Practice your thesis / capstone
-title defense with AI-generated questions across multiple research components,
-difficulty levels, and tracks. Includes a built-in chatbot coach, progress
-history, photo and PDF export, dark mode, and offline support.
+title defense with AI-generated flashcards across research components and
+difficulty levels, plus a chatbot coach. Includes an admin analytics panel,
+offline PWA support, and bundled chapter files.
 
 ## Features
 
-- **Flashcard-style defense trainer** — random or sequential questions across
-  eight research components (Problem Statement, Objectives, Methodology, etc.).
-- **Adjustable difficulty** — Easy, Medium, Hard.
-- **AI Question Generation** — pluggable backends (Google Gemini, Groq, OpenAI).
-- **AI Chatbot Coach** — get hints, feedback, or clarifications in chat.
-- **History tracking** — every card you see is saved locally; accessible via the
-  sidebar with filter and delete.
-- **Photo export** — render a flashcard as a shareable image.
-- **PDF export** — download the full session as a PDF.
-- **Dark mode** — light / dark / system with persistent preference.
-- **Toast notifications** — non-blocking success / error feedback.
-- **Modal confirmations** — accessible dialogs for destructive actions.
-- **Progressive Web App** — installs to home screen, works offline
-  (cache-first for CDN, stale-while-revalidate for app shell).
-- **Accessibility** — keyboard navigation, skip link, ARIA roles, reduced-motion
-  support.
+- **Flashcard defense trainer** — AI-generated Q&A from your uploaded chapter files
+- **Section-based retrieval** — only relevant chapter sections are sent to the AI
+- **Adjustable difficulty** — Easy, Medium, Hard
+- **Chapter-aware components** — configured in `chapter-config.js` (Chapters 1–5)
+- **AI Chatbot Coach** — conversational help grounded in chapter content
+- **Practice history** — saved locally with favorites filter and delete
+- **Photo & PDF export** — lazy-loaded libraries (html2canvas, jsPDF)
+- **Dark mode** — persistent preference
+- **Progressive Web App** — offline app shell, CDN libs, and chapter files cached
+- **Admin panel** (`admin.html`) — usage stats, per-user activity, chat logs, card reports
+- **Accessibility** — skip link, keyboard flashcard flip, ARIA labels, reduced-motion
 
 ## Quick Start
 
 ### Serve locally
 
 ```bash
-# Option 1: any static server
-npx http-server -p 8080 -c-1 .
+# Static server (API routes won't work without Vercel)
+npm start
 
-# Option 2: Vercel CLI (matches production)
-npx vercel dev
+# Full stack with serverless API (recommended)
+npm run dev
 ```
 
-Then open `http://localhost:8080`.
+Then open `http://localhost:8080` (or the port Vercel assigns).
 
-### Run tests
+### Environment variables (Vercel)
 
-```bash
-# All suites
-npm test
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `GROQ_API_KEY` | Yes | Groq API key for `/api/chat` |
+| `ADMIN_PASS` | For admin | Password for the analytics dashboard |
+| `KV_REST_API_URL` | Optional | Vercel KV URL for persistent analytics |
+| `KV_REST_API_TOKEN` | Optional | Vercel KV token |
+| `DEBUG` | Optional | Set `true` for verbose API logs |
 
-# Individual suite
-npm run test:storage
-npm run test:api
-npm run test:toast
+## Project structure
+
 ```
-
-Tests use Node `vm` to load the production scripts with a mocked
-`localStorage` / `fetch` / `document` — no dependencies required.
+├── index.html          Main app
+├── app.js              Flashcard + chatbot logic
+├── chapter-config.js   Chapter/component configuration
+├── styles.css          UI styles
+├── sw.js               Service worker (offline caching)
+├── admin.html          Analytics dashboard
+├── api/
+│   ├── chat.js         Groq AI proxy (flashcards + chat)
+│   └── analytics.js    Event logging + admin API
+└── data/chapters/      Chapter .txt / .pdf / .docx files
+```
 
 ## Deployment
 
-The project is configured for [Vercel](https://vercel.com):
-
-- `vercel.json` declares:
-  - Strict Content-Security-Policy (script-src `'self'` + SRI-hashed CDN).
-  - HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy,
-    Permissions-Policy.
-  - Service-worker-friendly headers for `/sw.js` (`Service-Worker-Allowed: /`).
-  - 5-minute cache for `/data/*`.
-- The `api/chat.js` serverless function proxies AI calls so API keys are not
-  exposed in the browser.
-
-Deploy with:
+Deploy to [Vercel](https://vercel.com):
 
 ```bash
 npx vercel --prod
 ```
 
-## Security
+`vercel.json` sets security headers and service-worker-friendly caching for `/sw.js`.
 
-- **CSP** restricts scripts to `'self'` plus the two CDN bundles (each pinned
-  with Subresource Integrity hashes).
-- **`unsafe-inline`** styles are allowed only because SVG data URIs are rendered
-  with inline color attributes.
-- **API keys** are not stored in the client. Edit `api/chat.js` to set server-side
-  environment variables (`GEMINI_API_KEY`, `GROQ_API_KEY`, `OPENAI_API_KEY`).
-- **No third-party trackers.**
+## AI backend
 
-## Browser Support
+The app uses **Groq** (`openai/gpt-oss-20b` / `openai/gpt-oss-120b`) via
+`/api/chat.js`. API keys stay server-side — never exposed in the browser.
 
-Modern evergreen browsers (Chrome, Edge, Firefox, Safari). Uses:
+## Security notes
 
-- `fetch`, `AbortController`, `localStorage`
-- Service workers (registration only on `https:` or `localhost`)
-- CSS custom properties, `prefers-color-scheme`, `prefers-reduced-motion`
+- Analytics POST is rate-limited and payload-capped; GET requires `ADMIN_PASS`
+- Admin auth is password-based (Bearer token) — use a strong secret in production
+- Card reports and chat snippets are truncated before storage
+
+## Browser support
+
+Modern evergreen browsers (Chrome, Edge, Firefox, Safari). Requires `fetch`,
+`localStorage`, and service workers (HTTPS or localhost).
 
 ## License
 

@@ -1,15 +1,15 @@
 /* ============================================================
    Defense Prep - Service Worker (offline caching)
    ============================================================
-   Provides basic offline support:
    - Pre-caches the app shell (HTML, CSS, JS, config).
-   - Network-first for dynamic resources (APIs, chapter files) so
-     fresh content is preferred, with a cache fallback for offline.
+   - Cache-first for known CDN libraries (Google Fonts, html2canvas,
+     jsPDF, mammoth) so export/docx features work offline.
+   - Cache-first for /data/chapters/* (txt/pdf/docx).
+   - Network-first with cache fallback for same-origin app assets.
+   - Cache version is derived from app shell ETags on install so it
+     bumps automatically whenever deployed files change.
    ============================================================ */
 
-const CACHE_NAME = 'defense-prep-v1';
-
-// App shell to pre-cache on install.
 const APP_SHELL = [
     './',
     './index.html',
@@ -19,48 +19,147 @@ const APP_SHELL = [
     './admin.html'
 ];
 
-// Install: pre-cache the app shell.
+const CDN_URLS = [
+    'https://fonts.googleapis.com',
+    'https://fonts.gstatic.com',
+    'https://cdnjs.cloudflare.com/ajax/libs/html2canvas',
+    'https://cdnjs.cloudflare.com/ajax/libs/jspdf',
+    'https://cdnjs.cloudflare.com/ajax/libs/mammoth'
+];
+
+const CHAPTER_FILES = [
+    '/data/chapters/chapter-1.txt',
+    '/data/chapters/chapter-1.pdf',
+    '/data/chapters/chapter-1.docx',
+    '/data/chapters/chapter-2.txt',
+    '/data/chapters/chapter-2.pdf',
+    '/data/chapters/chapter-2.docx',
+    '/data/chapters/chapter-3.txt',
+    '/data/chapters/chapter-3.pdf',
+    '/data/chapters/chapter-3.docx',
+    '/data/chapters/chapter-4.txt',
+    '/data/chapters/chapter-4.pdf',
+    '/data/chapters/chapter-4.docx',
+    '/data/chapters/chapter-5.txt',
+    '/data/chapters/chapter-5.pdf',
+    '/data/chapters/chapter-5.docx'
+];
+
+let cacheNamePromise = null;
+
+function isCdnUrl(url) {
+    return CDN_URLS.some((prefix) => url.href.startsWith(prefix));
+}
+
+function isChapterFile(url) {
+    return /\/data\/chapters\/chapter-[1-5]\.(txt|pdf|docx)$/.test(url.pathname);
+}
+
+// Derive a stable cache name from the ETags/Last-Modified of core app files.
+// When any shell file changes on deploy, the cache name changes and old
+// caches are purged on activate — no manual version bump needed.
+async function resolveCacheName() {
+    if (cacheNamePromise) return cacheNamePromise;
+    cacheNamePromise = (async () => {
+        const tags = [];
+        for (const path of ['./app.js', './index.html', './styles.css']) {
+            try {
+                const res = await fetch(path, { method: 'HEAD', cache: 'no-store' });
+                tags.push(res.headers.get('etag') || res.headers.get('last-modified') || path);
+            } catch {
+                tags.push(path);
+            }
+        }
+        const raw = tags.join('|');
+        let hash = 0;
+        for (let i = 0; i < raw.length; i++) {
+            hash = ((hash << 5) - hash) + raw.charCodeAt(i);
+            hash |= 0;
+        }
+        return 'defense-prep-' + Math.abs(hash).toString(36);
+    })();
+    return cacheNamePromise;
+}
+
+async function openCache() {
+    const name = await resolveCacheName();
+    return caches.open(name);
+}
+
 self.addEventListener('install', (event) => {
     event.waitUntil(
-        caches.open(CACHE_NAME)
-            .then((cache) => cache.addAll(APP_SHELL))
+        resolveCacheName()
+            .then((name) => caches.open(name))
+            .then((cache) => cache.addAll(APP_SHELL).catch(() => Promise.resolve()))
             .then(() => self.skipWaiting())
     );
 });
 
-// Activate: clean up old caches.
 self.addEventListener('activate', (event) => {
     event.waitUntil(
-        caches.keys()
-            .then((keys) => Promise.all(
-                keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
-            ))
+        resolveCacheName()
+            .then((currentName) => caches.keys().then((keys) => Promise.all(
+                keys.filter((key) => key !== currentName).map((key) => caches.delete(key))
+            )))
             .then(() => self.clients.claim())
     );
 });
 
-// Fetch: network-first with cache fallback for GET requests.
 self.addEventListener('fetch', (event) => {
     const request = event.request;
     if (request.method !== 'GET') return;
 
-    // Bypass the service worker for cross-origin CDN requests (let them use HTTP cache).
     const url = new URL(request.url);
-    if (url.origin !== self.location.origin) return;
 
-    event.respondWith(
-        fetch(request)
-            .then((response) => {
-                // Cache successful same-origin responses (only cacheable types).
-                const clone = response.clone();
+    if (isCdnUrl(url)) {
+        event.respondWith((async () => {
+            const cached = await caches.match(request);
+            if (cached) return cached;
+            try {
+                const response = await fetch(request);
+                if (response.ok) {
+                    const cache = await openCache();
+                    cache.put(request, response.clone());
+                }
+                return response;
+            } catch {
+                return cached;
+            }
+        })());
+        return;
+    }
+
+    if (isChapterFile(url)) {
+        event.respondWith((async () => {
+            const cached = await caches.match(request);
+            const network = fetch(request).then(async (response) => {
+                if (response.ok) {
+                    const cache = await openCache();
+                    cache.put(request, response.clone());
+                }
+                return response;
+            }).catch(() => cached);
+            return cached || network;
+        })());
+        return;
+    }
+
+    if (url.origin === self.location.origin) {
+        event.respondWith((async () => {
+            try {
+                const response = await fetch(request);
                 if (response.ok && (request.destination === 'document' ||
                     request.destination === 'script' ||
                     request.destination === 'style' ||
                     request.destination === 'font')) {
-                    caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+                    const cache = await openCache();
+                    cache.put(request, response.clone());
                 }
                 return response;
-            })
-            .catch(() => caches.match(request).then((cached) => cached || caches.match('./index.html')))
-    );
+            } catch {
+                const cached = await caches.match(request);
+                return cached || caches.match('./index.html');
+            }
+        })());
+    }
 });

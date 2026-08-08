@@ -81,11 +81,7 @@
             background: #dc2626;
         }
 
-        .stats {
-            display: flex;
-            gap: 16px;
-            flex-wrap: wrap;
-        }
+        .stats { display: flex; gap: 16px; flex-wrap: wrap; }
 
         .stat {
             flex: 1;
@@ -182,6 +178,10 @@
                         <div class="label">Flashcards</div>
                     </div>
                     <div class="stat">
+                        <div class="num" id="statUsers">0</div>
+                        <div class="label">Users</div>
+                    </div>
+                    <div class="stat">
                         <div class="num" id="statDev">0</div>
                         <div class="label">Device Types</div>
                     </div>
@@ -201,6 +201,18 @@
             <div class="card">
                 <h2>By Chapter</h2>
                 <div id="byChapter"></div>
+            </div>
+
+            <div class="card">
+                <h2>Users</h2>
+                <p class="sub">Aggregated by anonymous user ID (or IP when ID is missing). Sorted by most recent activity.</p>
+                <div id="usersTable"></div>
+            </div>
+
+            <div class="card">
+                <h2>Chat Logs</h2>
+                <p class="sub">Recent chatbot conversations recorded from all users (last 300 messages).</p>
+                <div id="chatLogsTable"></div>
             </div>
 
             <div class="card">
@@ -254,6 +266,7 @@
                 document.getElementById('loginScreen').style.display = 'none';
                 document.getElementById('dashboard').style.display = 'block';
                 showLoginMsg('');
+                trackLogin();
             }).catch((e) => {
                 adminToken = '';
                 showLoginMsg(e.message || 'Login failed.');
@@ -277,11 +290,15 @@
             document.getElementById('statTotal').textContent = data.total || 0;
             document.getElementById('statChats').textContent = (data.byType && data.byType.chat) || 0;
             document.getElementById('statCards').textContent = (data.byType && data.byType.flashcard) || 0;
+            document.getElementById('statUsers').textContent = (data.users && data.users.length) || 0;
             document.getElementById('statDev').textContent = data.byDevice ? Object.keys(data.byDevice).length : 0;
 
             document.getElementById('byDevice').innerHTML = renderMap(data.byDevice);
             document.getElementById('byType').innerHTML = renderMap(data.byType);
             document.getElementById('byChapter').innerHTML = renderMap(data.byChapter);
+
+            renderUsersTable(data.users || []);
+            renderChatLogsTable(data.chatLogs || []);
 
             const tbody = document.getElementById('eventsBody');
             tbody.innerHTML = '';
@@ -298,6 +315,76 @@
             });
 
             renderCardReports(data.events || []);
+        }
+
+        function renderUsersTable(users) {
+            const container = document.getElementById('usersTable');
+            if (!users.length) {
+                container.innerHTML = '<p style="color:#6b7280">No user activity yet.</p>';
+                return;
+            }
+            container.innerHTML = `
+        <table>
+            <thead>
+                <tr>
+                    <th>User ID</th>
+                    <th>IP</th>
+                    <th>Device</th>
+                    <th>First Seen</th>
+                    <th>Last Seen</th>
+                    <th>Events</th>
+                    <th>Chats</th>
+                    <th>Flashcards</th>
+                    <th>Reports</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${users.map((u) => `
+                    <tr>
+                        <td>${escapeHtml(u.userId || '—')}</td>
+                        <td>${escapeHtml(u.ip || 'unknown')}</td>
+                        <td>${escapeHtml(u.device || 'unknown')}</td>
+                        <td>${u.firstSeen ? new Date(u.firstSeen).toLocaleString() : '—'}</td>
+                        <td>${u.lastSeen ? new Date(u.lastSeen).toLocaleString() : '—'}</td>
+                        <td>${u.events || 0}</td>
+                        <td>${u.chats || 0}</td>
+                        <td>${u.flashcards || 0}</td>
+                        <td>${u.reports || 0}</td>
+                    </tr>`).join('')}
+            </tbody>
+        </table>`;
+        }
+
+        function renderChatLogsTable(chatLogs) {
+            const container = document.getElementById('chatLogsTable');
+            if (!chatLogs.length) {
+                container.innerHTML = '<p style="color:#6b7280">No chat messages recorded yet.</p>';
+                return;
+            }
+            container.innerHTML = `
+        <table>
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>User</th>
+                    <th>Device</th>
+                    <th>Chapter</th>
+                    <th>User Message</th>
+                    <th>Bot Reply</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${chatLogs.map((log) => `
+                    <tr>
+                        <td>${log.timestamp ? new Date(log.timestamp).toLocaleString() : '—'}</td>
+                        <td>${escapeHtml(log.userId || 'unknown')}</td>
+                        <td>${escapeHtml(log.device || 'unknown')}</td>
+                        <td>${escapeHtml(log.chapter || '—')}</td>
+                        <td>${escapeHtml(log.message || '')}</td>
+                        <td>${escapeHtml(log.botSnippet || '')}</td>
+                    </tr>`).join('')}
+            </tbody>
+        </table>`;
         }
 
         // Render the "Card Reports" section: merge backend card_report events
@@ -398,6 +485,14 @@
             return String(str || '').replace(/[&<>"']/g, (c) => ({
                 '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
             }[c]));
+        }
+
+        function trackLogin() {
+            fetch(API, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'login', data: { page: 'admin' } })
+            }).catch(() => { });
         }
     </script>
 </body>
