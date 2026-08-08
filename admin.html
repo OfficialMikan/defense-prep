@@ -396,7 +396,7 @@
 
         function escapeHtml(str) {
             return String(str || '').replace(/[&<>"']/g, (c) => ({
-                '&': '&amp;', '<': '<', '>': '>', '"': '"', "'": '&#39;'
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
             }[c]));
         }
     </script>

@@ -78,7 +78,16 @@
             </div>
             <div class="chapter-viewer-toolbar">
                 <span id="chapterViewerSubtitle">Document viewer</span>
+                <div class="chapter-viewer-tabs" id="chapterViewerTabs">
+                    <button class="chapter-viewer-tab active" data-tab="text"
+                        onclick="setChapterViewerTab('text')">Text</button>
+                    <button class="chapter-viewer-tab" data-tab="pdf" onclick="setChapterViewerTab('pdf')">PDF</button>
+                    <button class="chapter-viewer-tab" data-tab="docx"
+                        onclick="setChapterViewerTab('docx')">DOCX</button>
+                </div>
+                <button class="chapter-viewer-back" onclick="closeChapterViewer()">← Back to Home</button>
             </div>
+            <!-- The active tab's content is rendered into this region by app.js -->
             <div id="chapterViewerContent" class="chapter-viewer-content"></div>
         </div>
     </div>
@@ -226,8 +235,6 @@
                 </div>
                 <div class="chapter-pdf-list" id="chapterPdfList"></div>
                 <div class="chapter-preview">
-                    <div class="chapter-status" id="chapterStatus">Waiting for chapter content…</div>
-                    <div class="chapter-preview-title" id="chapterPreviewTitle">Chapter 1</div>
                     <div id="chapterContentArea" class="chapter-summary"></div>
                 </div>
             </div>

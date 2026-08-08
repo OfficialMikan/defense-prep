@@ -157,6 +157,14 @@ const MAX_FLASHCARD_DUMP_CHARS = 4000;
 const GENERATION_COOLDOWN_MS = 10000;
 let lastGenerationAt = 0;
 
+// State for the chapter viewer overlay. Tracks which chapter is open, the
+// loaded text content, and which tab (text/pdf/docx) is currently active.
+let chapterViewerState = {
+    chapterNumber: 1,
+    text: '',
+    activeTab: 'text'
+};
+
 function truncateDump(text, max) {
     const s = String(text || '');
     if (s.length <= max) return s;
@@ -329,52 +337,93 @@ function getChapterScope(chapterNumber = chapterUploadState.activeChapter) {
     };
 }
 
+// Convert a chapter's raw text into richly formatted, safe HTML.
+// All-caps lines are treated as section headings; numbered items become
+// ordered lists; everything else becomes a paragraph. All content is escaped
+// so no raw HTML from the source file can ever be injected.
+function buildStyledChapterText(text) {
+    const raw = String(text || '').replace(/\r/g, '').trim();
+    if (!raw) {
+        return '<div class="chapter-empty">No text content found for this chapter.</div>';
+    }
+
+    // Split into lines preserving blank lines so we can detect block breaks.
+    const lines = raw.split('\n').map((l) => l.trim());
+    const blocks = [];
+    let current = [];
+
+    const flush = () => {
+        if (current.length) {
+            blocks.push(current.join(' '));
+            current = [];
+        }
+    };
+
+    for (const line of lines) {
+        if (!line) {
+            flush();
+            continue;
+        }
+        // Detect all-caps heading lines (e.g. "INTRODUCTION", "METHODS").
+        if (/^[A-Z][A-Z\s&'’.\-/]{2,}$/.test(line) && line.length >= 3 && line.length <= 60) {
+            flush();
+            blocks.push({ type: 'heading', text: line });
+        } else {
+            current.push(line);
+        }
+    }
+    flush();
+
+    const html = blocks.map((block) => {
+        if (block && block.type === 'heading') {
+            return `<h4 class="chapter-styled-heading">${escapeHtml(block.text)}</h4>`;
+        }
+        const text = block;
+        // Numbered list items: "1. text" or "a. text"
+        if (/^\s*\d+[.)]\s+/.test(text) || /^\s*[a-d][.)]\s+/.test(text)) {
+            const items = text.split(/\n+/).map((part) => part.trim()).filter(Boolean);
+            const lis = items.map((item) => `<li>${escapeHtml(item.replace(/^\s*\d+[.)]\s+/, '').replace(/^\s*[a-d][.)]\s+/, ''))}</li>`).join('');
+            return `<ol class="chapter-styled-list">${lis}</ol>`;
+        }
+        return `<p class="chapter-styled-paragraph">${escapeHtml(text)}</p>`;
+    }).join('\n');
+
+    return html;
+}
+
 function populateChapterPreview() {
-    const previewTitle = document.getElementById('chapterPreviewTitle');
     const contentArea = document.getElementById('chapterContentArea');
-    const statusLabel = document.getElementById('chapterStatus');
     const pdfList = document.getElementById('chapterPdfList');
     const activeChapter = chapterUploadState.activeChapter;
     const scope = getChapterScope(activeChapter);
-    const usingUploadedFiles = Boolean(chapterUploadState.chapters && Object.keys(chapterUploadState.chapters).length);
-    if (previewTitle) previewTitle.textContent = scope.title;
+    const availableChapters = [1, 2];
 
-    // Build the "View Research Papers" list: one wide, tappable button per
-    // chapter that has an uploaded .txt/.docx file. The PDF is NOT embedded
-    // inline (avoids the mobile layout break) — it only opens in the overlay
-    // when a button is clicked.
+    // Build the "View Chapter N" buttons — one wide, tappable button per
+    // chapter that has uploaded content. Always show chapters 1 and 2 so the
+    // previews are clickable even before the txt files finish loading.
     if (pdfList) {
         pdfList.innerHTML = '';
-        const loadOrder = [1, 2, 3, 4, 5];
-        loadOrder.forEach((chapterNumber) => {
-            const entry = chapterUploadState.chapters && chapterUploadState.chapters[chapterNumber];
-            if (!entry || !entry.pdfPath) return;
+        availableChapters.forEach((chapterNumber) => {
             const btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'btn-view-pdf' + (chapterNumber === activeChapter ? ' active' : '');
-            btn.innerHTML = `<span class="btn-view-pdf-icon">📄</span><span class="btn-view-pdf-label">Chapter ${chapterNumber} PDF</span>`;
+            btn.innerHTML = `<span class="btn-view-pdf-icon">📄</span><span class="btn-view-pdf-label">View Chapter ${chapterNumber}</span>`;
             btn.addEventListener('click', () => openChapterViewer(chapterNumber));
             pdfList.appendChild(btn);
         });
-        if (!pdfList.children.length) {
-            const empty = document.createElement('div');
-            empty.className = 'chapter-empty';
-            empty.textContent = 'No uploaded chapter files found. Add chapter-1.txt / chapter-2.txt (and .pdf) to the data/chapters folder, then tap Refresh.';
-            pdfList.appendChild(empty);
-        }
     }
 
+    // Show the chapter's formatted text preview directly in the content area.
     if (contentArea) {
-        if (usingUploadedFiles) {
-            contentArea.innerHTML = '<div class="chapter-empty">Select a paper above to view its PDF.</div>';
-        } else if (activeChapter > 2) {
-            contentArea.innerHTML = `<div class="chapter-empty">Chapter ${activeChapter} is unavailable for now. The content for this chapter has not been added yet.</div>`;
-        } else {
-            contentArea.innerHTML = '<div class="chapter-empty">No uploaded chapter content is available yet. Add chapter-1.txt / chapter-2.txt (and .pdf) to the data/chapters folder.</div>';
-        }
-    }
-    if (statusLabel) {
-        statusLabel.textContent = usingUploadedFiles ? `${Object.keys(chapterUploadState.chapters).length} paper(s) available below` : 'No uploaded chapter files found';
+        const scopeText = scope.dataDump || '';
+        contentArea.innerHTML = scopeText
+            ? buildStyledChapterText(scopeText)
+            : '<div class="chapter-empty">Chapter content is not available yet.</div>';
+
+        // Keep the preview area clickable so tapping it also opens the viewer.
+        contentArea.onclick = () => {
+            openChapterViewer(activeChapter);
+        };
     }
     saveChapterState();
 }
@@ -401,6 +450,57 @@ function buildChapterSummary(text) {
     `;
 }
 
+// Render the appropriate content into the chapter viewer based on the active tab.
+function renderChapterViewerContent() {
+    const content = document.getElementById('chapterViewerContent');
+    if (!content) return;
+    const state = chapterViewerState;
+    const scope = getChapterScope(state.chapterNumber);
+    const pdfPath = scope.pdfPath || `/data/chapters/chapter-${state.chapterNumber}.pdf`;
+    const docxPath = scope.docxPath || `/data/chapters/chapter-${state.chapterNumber}.docx`;
+
+    // Sync the active tab highlight.
+    document.querySelectorAll('.chapter-viewer-tab').forEach((tab) => {
+        tab.classList.toggle('active', tab.dataset.tab === state.activeTab);
+    });
+
+    if (state.activeTab === 'text') {
+        content.innerHTML = state.text
+            ? buildStyledChapterText(state.text)
+            : '<div class="chapter-empty">No text content is available for this chapter.</div>';
+        content.dataset.rawText = state.text;
+        return;
+    }
+
+    if (state.activeTab === 'pdf') {
+        content.innerHTML = `
+<div class="chapter-preview-meta">PDF preview</div>
+<iframe src="${pdfPath}" title="Chapter ${state.chapterNumber} PDF preview" class="chapter-viewer-frame"></iframe>
+<div class="chapter-preview-actions">
+    <a class="btn-proposal chapter-viewer-copy" href="${pdfPath}" target="_blank" rel="noopener">Open PDF</a>
+</div>`;
+        content.dataset.rawText = '';
+        return;
+    }
+
+    if (state.activeTab === 'docx') {
+        content.innerHTML = `
+<div class="chapter-preview-meta">Original DOCX</div>
+<div class="chapter-viewer-docx">
+    <p>This chapter is available as a Microsoft Word document.</p>
+    <a class="btn-proposal chapter-viewer-copy" href="${docxPath}" target="_blank" rel="noopener">Open DOCX</a>
+</div>`;
+        content.dataset.rawText = '';
+    }
+}
+
+// Switch the active tab (text/pdf/docx) and re-render the viewer content.
+function setChapterViewerTab(tab) {
+    if (!chapterViewerState || !['text', 'pdf', 'docx'].includes(tab)) return;
+    chapterViewerState.activeTab = tab;
+    renderChapterViewerContent();
+}
+
 async function openChapterViewer(chapterNumber = chapterUploadState.activeChapter) {
     const overlay = document.getElementById('chapterViewerOverlay');
     const title = document.getElementById('chapterViewerTitle');
@@ -408,11 +508,20 @@ async function openChapterViewer(chapterNumber = chapterUploadState.activeChapte
     const content = document.getElementById('chapterViewerContent');
     const scope = getChapterScope(chapterNumber);
     if (!overlay || !title || !content) return;
+
     chapterUploadState.activeChapter = chapterNumber;
     currentChapter = chapterNumber;
     populateChapterDropdown();
     populateComponentDropdown();
     populateChapterPreview();
+
+    // Set viewer state and default to the Text tab.
+    chapterViewerState = {
+        chapterNumber,
+        text: scope.dataDump || '',
+        activeTab: 'text'
+    };
+
     title.textContent = scope.title;
     subtitle.textContent = `Previewing Chapter ${chapterNumber} `;
     content.innerHTML = '<div class="chapter-empty">Loading the chapter preview…</div>';
@@ -420,51 +529,19 @@ async function openChapterViewer(chapterNumber = chapterUploadState.activeChapte
     overlay.style.display = 'flex';
     document.body.style.overflow = 'hidden';
 
-    const docxPath = scope.docxPath || `/data/chapters/chapter-${chapterNumber}.docx`;
-    const pdfPath = scope.pdfPath || `/data/chapters/chapter-${chapterNumber}.pdf`;
+    // Try to load the freshest text from the .txt file (fall back to cached).
     const textPath = scope.textPath || `/data/chapters/chapter-${chapterNumber}.txt`;
-    let previewText = '';
-
     try {
         const textResponse = await fetch(textPath, { cache: 'no-store' });
         if (textResponse.ok) {
-            previewText = (await textResponse.text()).trim();
+            const freshText = (await textResponse.text()).trim();
+            if (freshText) chapterViewerState.text = freshText;
         }
     } catch (error) {
         console.warn('Could not load chapter text preview', error);
     }
 
-    try {
-        const response = await fetch(pdfPath, { cache: 'no-store' });
-        if (!response.ok) {
-            throw new Error('PDF not found');
-        }
-
-        content.innerHTML = `
-<div class="chapter-preview-meta">PDF preview</div>
-<iframe src="${pdfPath}" title="Chapter ${chapterNumber} PDF preview" style="width:100%; min-height: 70vh; border: 1px solid #ddd; border-radius: 12px;"></iframe>
-                    <div class="chapter-preview-actions">
-                        <a class="btn-proposal chapter-viewer-copy" href="${pdfPath}" target="_blank" rel="noopener">Open PDF</a>
-                        <a class="btn-proposal chapter-viewer-copy" href="${docxPath}" target="_blank" rel="noopener">Open original DOCX</a>
-                    </div>
-        `;
-
-        if (previewText) {
-            content.dataset.rawText = previewText;
-            content.innerHTML += `
-<div class="chapter-preview-meta">Uploaded text</div>
-                <div class="chapter-preview-card">${previewText}</div>
-                `;
-        }
-    } catch (error) {
-        content.dataset.rawText = scope.dataDump || '';
-        content.innerHTML = `
-                    <div class="chapter-empty">${scope.dataDump || 'No chapter content is available yet.'}</div>
-                    <div class="chapter-preview-actions">
-                        <a class="btn-proposal chapter-viewer-copy" href="${docxPath}" target="_blank" rel="noopener">Open source file</a>
-                    </div>
-                `;
-    }
+    renderChapterViewerContent();
 }
 
 function closeChapterViewer() {
@@ -605,9 +682,11 @@ function loadChatHistory() {
 }
 
 function performFlip() {
-    if (executionPointerIndex !== -1) {
-        document.getElementById('flashcard').classList.toggle('flipped');
-    }
+    // Always allow flipping, even in the default/pre-generation state
+    // (executionPointerIndex === -1), so the card reacts to taps immediately.
+    // Once a card is generated, syncCardDisplaySurface() resets the card to
+    // the front side and the flip keeps working normally.
+    document.getElementById('flashcard').classList.toggle('flipped');
 }
 
 function setDifficulty(difficulty) {
@@ -996,12 +1075,14 @@ function renderHistoryPanelUI() {
     <span class="history-item-label">Q${visibleIndex + 1}: ${cardInstance.label} (${cardInstance.difficulty})</span>
         <button class="delete-btn" onclick="deleteHistoryItem(event, ${originalIndex})">🗑️</button>
         <button class="favorite-btn ${cardInstance.favorite ? 'favorited' : ''}" onclick="toggleFavorite(event, ${originalIndex})">★</button>
+        <button class="history-report-btn" onclick="reportCardFromHistory(event, ${originalIndex})" title="Report inaccurate content">🚩</button>
     `;
 
         executionListItem.onclick = (clickEvent) => {
             if (clickEvent.target.classList.contains('delete-btn') ||
-                clickEvent.target.classList.contains('favorite-btn')) {
-                return; // Don't select if clicking delete or favorite
+                clickEvent.target.classList.contains('favorite-btn') ||
+                clickEvent.target.classList.contains('history-report-btn')) {
+                return; // Don't select if clicking delete, favorite, or report
             }
 
             clickEvent.stopPropagation();
@@ -1315,7 +1396,22 @@ function reportCard(event) {
         return;
     }
     const card = generatedCardsCollection[executionPointerIndex];
+    submitCardReport(card, 'Card');
+}
 
+// Report a flashcard directly from a history item in the sidebar.
+function reportCardFromHistory(event, index) {
+    event.stopPropagation();
+    const card = generatedCardsCollection[index];
+    if (!card) return;
+    submitCardReport(card, 'History');
+    // Do not switch the selected card / close the sidebar.
+}
+
+// Shared reporting logic used by both the on-card 🚩 button and the history
+// item 🚩 button. Persists locally AND logs to the centralized backend so all
+// users' reports are visible in the admin panel.
+function submitCardReport(card, source) {
     // Block duplicate reports of the same flashcard.
     if (reportedCardIds.has(card.id)) {
         showErrorModal('You have already reported this flashcard. Thank you for your feedback!');
@@ -1336,7 +1432,8 @@ function reportCard(event) {
         component: card.component,
         question: card.question,
         answer: card.answer,
-        reason: (reason || '').trim()
+        reason: (reason || '').trim(),
+        source
     };
 
     // Track this card as reported so it cannot be reported again.
@@ -1344,7 +1441,7 @@ function reportCard(event) {
     try {
         localStorage.setItem('reportedCardIds', JSON.stringify([...reportedCardIds]));
     } catch (e) {
-        dbgError('reportCard', 'Failed to persist reported card ids', e);
+        dbgError('submitCardReport', 'Failed to persist reported card ids', e);
     }
 
     let reports = [];
@@ -1369,11 +1466,12 @@ function reportCard(event) {
                 component: report.component,
                 question: report.question,
                 answer: report.answer,
-                reason: report.reason
+                reason: report.reason,
+                source: report.source
             });
         }
     } catch (e) {
-        dbgError('reportCard', 'Failed to send report to backend', e);
+        dbgError('submitCardReport', 'Failed to send report to backend', e);
     }
 
     alert('Thank you! Your report has been logged for review.');
@@ -1479,12 +1577,78 @@ async function sendMessage() {
 }
 
 
+// Escape HTML to prevent injection, then render a small, safe subset of
+// Markdown (bold, italic, inline code, bullet/numbered lists, and line
+// breaks) so AI chat replies show up nicely formatted.
+function escapeHtml(str) {
+    return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function escapeHtmlSafe(str) {
+    return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function renderMarkdown(text) {
+    if (!text) return '';
+    let html = escapeHtmlSafe(text);
+
+    // Code blocks (```...```) -> <pre><code>
+    html = html.replace(/```([\s\S]*?)```/g, (m, code) => `<pre class="md-code"><code>${code}</code></pre>`);
+
+    // Inline code `...`
+    html = html.replace(/`([^`]+)`/g, (m, code) => `<code class="md-code-inline">${code}</code>`);
+
+    // Bold **text**
+    html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    // Italic *text*
+    html = html.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>');
+
+    // Headings (# .. #####)
+    html = html.replace(/^#####\s+(.+)$/gm, '<h6>$1</h6>');
+    html = html.replace(/^####\s+(.+)$/gm, '<h5>$1</h5>');
+    html = html.replace(/^###\s+(.+)$/gm, '<h4>$1</h4>');
+    html = html.replace(/^##\s+(.+)$/gm, '<h3>$1</h3>');
+    html = html.replace(/^#\s+(.+)$/gm, '<h2>$1</h2>');
+
+    // Unordered lists
+    html = html.replace(/^\s*[-*]\s+(.+)$/gm, '<li>$1</li>');
+    html = html.replace(/((?:<li>.*<\/li>\s*)+)/g, '<ul>$1</ul>');
+    // Ordered lists
+    html = html.replace(/^\s*(\d+)\.\s+(.+)$/gm, '<li value="$1">$2</li>');
+    html = html.replace(/((?:<li value="\d+">.*<\/li>\s*)+)/g, '<ol>$1</ol>');
+
+    // Line breaks
+    html = html.replace(/\n{2,}/g, '</p><p>');
+    html = html.replace(/\n/g, '<br>');
+
+    html = `<p>${html}</p>`;
+    // Collapse empty paragraphs
+    html = html.replace(/<p><\/p>/g, '');
+    return html;
+}
+
 function addMessageToChat(message, sender) {
     const messagesContainer = document.getElementById('chatbotMessages');
     const messageElement = document.createElement('div');
     messageElement.classList.add('message');
     messageElement.classList.add(sender + '-message');
-    messageElement.textContent = message;
+
+    // Render basic Markdown for bot messages (safe HTML), plain text for user.
+    if (sender === 'bot') {
+        messageElement.innerHTML = renderMarkdown(message);
+    } else {
+        messageElement.textContent = message;
+    }
 
     // Add long press copy functionality for bot messages
     if (sender === 'bot') {

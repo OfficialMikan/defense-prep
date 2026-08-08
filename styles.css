@@ -437,6 +437,7 @@ body {
     text-transform: uppercase;
     cursor: pointer;
     transition: all 0.1s ease;
+    margin-bottom: 12px;
 }
 
 .btn-export-pdf:hover {
@@ -758,7 +759,6 @@ body {
     height: 100%;
     top: 0;
     left: 0;
-    display: flex;
     border-radius: 20px;
     align-items: center;
     justify-content: center;
@@ -771,6 +771,12 @@ body {
     border: 2px solid var(--duo-gray);
     text-transform: uppercase;
     letter-spacing: 0.5px;
+}
+
+/* Only make the cover visible while a card is being generated. The
+   .loader is toggled via inline style.display = 'flex' by setCardCover(). */
+.loader.visible {
+    display: flex;
 }
 
 .btn-actions {
@@ -947,6 +953,39 @@ body {
     font-size: 1rem;
 }
 
+/* Text-preview reader body (used when a chapter is shown as plain text) */
+.chapter-text-preview-body {
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.7;
+    font-size: 0.95rem;
+    color: var(--text-dark);
+}
+
+/* Report detail block (shown in the report modal) */
+pre.report-detail {
+    background: #f8f8f8;
+    border: 1px solid var(--duo-gray);
+    border-radius: 12px;
+    padding: 12px 14px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    text-align: left;
+    font-family: var(--font);
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: var(--text-dark);
+    max-height: 240px;
+    overflow-y: auto;
+    margin: 12px 0;
+}
+
+:root.dark-mode pre.report-detail {
+    background: #2f2f2f;
+    border-color: #444;
+    color: #e6e6e6;
+}
+
 .chapter-summary {
     display: flex;
     flex-direction: column;
@@ -986,6 +1025,11 @@ body {
     transform: translateY(4px);
 }
 
+.btn-view-pdf.active {
+    background: var(--duo-green);
+    border-bottom-color: var(--duo-green-shadow);
+}
+
 .btn-view-pdf-icon {
     font-size: 1.5rem;
     flex: 0 0 auto;
@@ -1012,11 +1056,133 @@ body {
     }
 }
 
+/* Clickable chapter preview area — lets the user open the full viewer by
+   tapping anywhere on the preview content. */
+#chapterContentArea {
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+#chapterContentArea:hover {
+    background: #eef4ff;
+}
+
+:root.dark-mode #chapterContentArea:hover {
+    background: #2a3450;
+}
+
+/* Richly formatted chapter text (built by buildStyledChapterText) */
+.chapter-styled-heading {
+    font-size: 0.95rem;
+    font-weight: 900;
+    color: var(--duo-purple);
+    margin: 14px 0 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.chapter-styled-heading:first-child {
+    margin-top: 0;
+}
+
+.chapter-styled-paragraph {
+    color: var(--text-dark);
+    font-size: 0.95rem;
+    line-height: 1.7;
+    margin: 0 0 10px;
+    white-space: pre-wrap;
+}
+
+.chapter-styled-list {
+    margin: 0 0 10px 18px;
+    padding: 0;
+}
+
+.chapter-styled-list li {
+    color: var(--text-dark);
+    font-size: 0.95rem;
+    line-height: 1.6;
+    margin-bottom: 4px;
+}
+
+/* Chapter viewer: PDF iframe + DOCX placeholder */
+.chapter-viewer-frame {
+    width: 100%;
+    max-width: 100%;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    min-height: 70vh;
+    display: block;
+}
+
+.chapter-viewer-docx {
+    background: #f8f8f8;
+    border: 1px solid var(--duo-gray);
+    border-radius: 16px;
+    padding: 18px;
+    text-align: center;
+    color: var(--text-dark);
+    font-size: 0.95rem;
+}
+
+:root.dark-mode .chapter-viewer-docx {
+    background: #2f2f2f;
+    border-color: #444;
+    color: #e6e6e6;
+}
+
 .chapter-summary-card {
     background: white;
     border: 1px solid var(--duo-gray);
     border-radius: 14px;
     padding: 12px 14px;
+}
+
+/* Container for the "View Research Papers" button list */
+.chapter-pdf-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+/* The whole chapter preview area is clickable — show a pointer + hover hint */
+.chapter-summary.clickable-preview,
+#chapterContentArea.clickable-preview,
+.chapter-summary.clickable-preview {
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.clickable-preview:hover {
+    border-color: var(--duo-blue);
+    box-shadow: 0 0 0 2px rgba(28, 176, 246, 0.25);
+}
+
+.clickable-preview:active {
+    transform: translateY(1px);
+}
+
+/* Subtle "click to view" hint shown at the end of the preview */
+.clickable-preview::after {
+    content: '👁 Tap to view full chapter';
+    display: block;
+    margin-top: 12px;
+    font-size: 0.8rem;
+    font-weight: 800;
+    color: var(--duo-blue);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+:root.dark-mode .clickable-preview:hover {
+    border-color: #1cb0f6;
+}
+
+@media (max-width: 480px) {
+    .clickable-preview::after {
+        font-size: 0.72rem;
+    }
 }
 
 .chapter-summary-card h4 {
@@ -1219,6 +1385,84 @@ body {
     background: #f0f0f0;
     color: var(--text-dark);
     align-self: flex-start;
+}
+
+/* Markdown formatting inside bot chat messages */
+.bot-message p {
+    margin: 0 0 8px;
+}
+
+.bot-message p:last-child {
+    margin-bottom: 0;
+}
+
+.bot-message strong {
+    font-weight: 800;
+}
+
+.bot-message em {
+    font-style: italic;
+}
+
+.bot-message h2,
+.bot-message h3,
+.bot-message h4,
+.bot-message h5,
+.bot-message h6 {
+    margin: 10px 0 6px;
+    font-weight: 800;
+    line-height: 1.3;
+    color: var(--text-dark);
+}
+
+.bot-message ul,
+.bot-message ol {
+    margin: 6px 0 8px;
+    padding-left: 20px;
+}
+
+.bot-message li {
+    margin-bottom: 3px;
+}
+
+.bot-message code.md-code-inline {
+    background: rgba(0, 0, 0, 0.08);
+    padding: 2px 5px;
+    border-radius: 5px;
+    font-family: 'Consolas', 'Menlo', monospace;
+    font-size: 0.9em;
+    word-break: break-word;
+}
+
+.bot-message pre.md-code {
+    background: #1e1e2e;
+    color: #e6e6e6;
+    padding: 10px 12px;
+    border-radius: 10px;
+    overflow-x: auto;
+    margin: 8px 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.bot-message pre.md-code code {
+    font-family: 'Consolas', 'Menlo', monospace;
+    font-size: 0.85rem;
+    background: transparent;
+    padding: 0;
+}
+
+:root.dark-mode .bot-message h2,
+:root.dark-mode .bot-message h3,
+:root.dark-mode .bot-message h4,
+:root.dark-mode .bot-message h5,
+:root.dark-mode .bot-message h6 {
+    color: #ffffff;
+}
+
+:root.dark-mode .bot-message code.md-code-inline {
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
 }
 
 .chatbot-input {
@@ -1426,6 +1670,76 @@ body {
     gap: 10px;
 }
 
+/* ---- Chapter viewer: format tabs + back button ---- */
+.chapter-viewer-tabs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.chapter-viewer-tab {
+    padding: 8px 14px;
+    border: 2px solid var(--duo-gray);
+    border-bottom: 4px solid var(--duo-gray-shadow);
+    border-radius: 12px;
+    background: #f4f4f4;
+    color: var(--text-dark);
+    font-family: var(--font);
+    font-weight: 800;
+    font-size: 0.85rem;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.1s ease;
+}
+
+.chapter-viewer-tab.active {
+    background: var(--duo-blue);
+    color: white;
+    border-color: var(--duo-blue);
+    border-bottom-color: var(--duo-blue-shadow);
+}
+
+.chapter-viewer-tab:active {
+    border-bottom-width: 0px;
+    transform: translateY(4px);
+}
+
+/* The viewer content is always vertically scrollable & never horizontally */
+.chapter-viewer-content {
+    max-width: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    word-wrap: break-word;
+}
+
+.chapter-viewer-content iframe {
+    width: 100%;
+    max-width: 100%;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    min-height: 70vh;
+    display: block;
+}
+
+.chapter-viewer-back {
+    background: var(--duo-green);
+    color: #fff;
+    border: none;
+    border-bottom: 4px solid var(--duo-green-shadow);
+    padding: 10px 16px;
+    border-radius: 12px;
+    font-family: var(--font);
+    font-weight: 800;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+.chapter-viewer-back:active {
+    border-bottom-width: 0px;
+    transform: translateY(4px);
+}
+
 .btn-cancel {
     background: white;
     color: var(--text-muted);
@@ -1576,12 +1890,39 @@ body {
 
 /* Ensure all interactive elements have dark mode styles.
    NOTE: .btn-difficulty (Easy/Medium/Hard) intentionally keeps its branded
-   green/yellow/red colors in dark mode — they are NOT overridden here. */
+   green/yellow/red colors in dark mode — they are NOT overridden here.
+   IMPORTANT: background-color (not the background shorthand) is used for the
+   dropdown so the chevron's repeat/position/size from .component-dropdown are
+   preserved — otherwise the white arrow tiles across the whole control. */
 :root.dark-mode .component-dropdown,
 :root.dark-mode .btn-proposal {
-    background: #2d2d2d;
+    background-color: #2d2d2d;
     color: #ffffff;
     border-color: #404040;
+}
+
+/* White chevron arrow on the dropdowns in dark mode */
+:root.dark-mode .component-dropdown {
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 15px center;
+    background-size: 15px;
+}
+
+/* Report button inside history items (sidebar) */
+.history-item .history-report-btn {
+    position: absolute;
+    top: 10px;
+    right: 62px;
+    background: none;
+    border: none;
+    font-size: 1.1rem;
+    cursor: pointer;
+    color: var(--duo-red);
+}
+
+:root.dark-mode .history-item .history-report-btn {
+    color: #ff8080;
 }
 
 .btn-toggle-sidebar {
@@ -1778,6 +2119,9 @@ body {
     .proposal-selector {
         gap: 8px;
         margin: 12px 0;
+        width: 100%;
+        max-width: 100%;
+        padding: 0 4px;
     }
 
     .btn-proposal {
@@ -1785,6 +2129,18 @@ body {
         font-size: 0.85rem;
         min-width: 0;
         line-height: 1.3;
+    }
+
+    /* Prevent overlap between the flashcard and the generate button */
+    .flashcard-section {
+        gap: 14px;
+    }
+
+    .btn-generate-large {
+        width: 100%;
+        max-width: 100%;
+        height: 52px;
+        padding: 0 16px;
     }
 
     /* Modal */
