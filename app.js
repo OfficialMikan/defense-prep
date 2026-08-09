@@ -339,6 +339,7 @@ const MAX_FLASHCARD_DUMP_CHARS = 4000;
 // from exhausting the Groq free-tier TPM budget and hitting 429s.
 const GENERATION_COOLDOWN_MS = 10000;
 let lastGenerationAt = 0;
+let generationCooldownUntil = 0;
 
 // State for the chapter viewer overlay. Tracks which chapter is open, the
 // loaded text content, and which tab (text/pdf/docx) is currently active.
@@ -1548,9 +1549,10 @@ async function triggerInterrogation() {
         // Cooldown between generations to protect the Groq TPM budget. If the user
         // clicks too soon, show a friendly "warming up" message instead of firing
         // another request that would likely hit a 429.
-        const elapsed = Date.now() - lastGenerationAt;
-        if (lastGenerationAt > 0 && elapsed < GENERATION_COOLDOWN_MS) {
-            const waitSec = Math.ceil((GENERATION_COOLDOWN_MS - elapsed) / 1000);
+        const now = Date.now();
+        const nextAllowedAt = Math.max(lastGenerationAt + GENERATION_COOLDOWN_MS, generationCooldownUntil);
+        if (nextAllowedAt > now) {
+            const waitSec = Math.ceil((nextAllowedAt - now) / 1000);
             showErrorModal('The AI is warming up. Please wait about ' + waitSec + ' second(s) before generating another flashcard.');
             return;
         }
@@ -1686,7 +1688,10 @@ Now, as a panelist, ${randomAngle}. ${difficultyPrompt} ${componentPrompt} Base 
 
                 if (!response.ok) {
                     const errBody = await response.json().catch(() => ({}));
-                    throw new Error(`${errBody.error || ('Server error ' + response.status)}`);
+                    const requestError = new Error(`${errBody.error || ('Server error ' + response.status)}`);
+                    requestError.status = response.status;
+                    requestError.retryAfterMs = Number(errBody.retryAfterMs) || 0;
+                    throw requestError;
                 }
 
                 const parsedPackage = await response.json();
@@ -1735,6 +1740,13 @@ Now, as a panelist, ${randomAngle}. ${difficultyPrompt} ${componentPrompt} Base 
         if (!structuredData) {
             setGenerateButtonBusy(false);
             setCardCover(false);
+            if (generationError?.status === 429) {
+                const retryAfterMs = Math.max(generationError.retryAfterMs || 25000, 1000);
+                generationCooldownUntil = Date.now() + retryAfterMs;
+                const waitSec = Math.ceil(retryAfterMs / 1000);
+                showErrorModal('The AI rate limit was reached. Please wait ' + waitSec + ' second(s), then generate one card at a time.');
+                return;
+            }
             showErrorModal(generationError && generationError.message
                 ? generationError.message
                 : 'The AI service is currently unavailable. Please try again later.');
@@ -2130,20 +2142,94 @@ async function captureAndSavePhoto(event) {
                 }
             }
         });
-        const link = document.createElement('a');
-        link.download = `ResearchDefense_Q${executionPointerIndex + 1}.png`;
-        link.href = canvas.toDataURL("image/png");
-        link.click();
+        await saveFlashcardImage(canvas, executionPointerIndex + 1);
         if (typeof trackEvent === 'function') {
             trackEvent('export_photo', { chapter: currentCard.label });
         }
     } catch (error) {
         console.error("Photo Capture Failed:", error);
-        alert("Failed to save photo. Please try again.");
+        try {
+            // CSP rules, offline mode, and content blockers can prevent the
+            // optional html2canvas CDN from loading. This native fallback still
+            // produces a readable PNG without any external library.
+            await saveFlashcardImage(buildFlashcardImage(currentCard), executionPointerIndex + 1);
+        } catch (fallbackError) {
+            console.error("Photo fallback failed:", fallbackError);
+            alert("Failed to save the flashcard image. Please try again.");
+        }
     } finally {
         exportZone.setAttribute('style', originalZoneStyle);
         photoBtn.innerText = originalText;
     }
+}
+
+function wrapCanvasText(context, text, maxWidth) {
+    const words = String(text || '').split(/\s+/);
+    const lines = [];
+    let line = '';
+    words.forEach((word) => {
+        const candidate = line ? `${line} ${word}` : word;
+        if (line && context.measureText(candidate).width > maxWidth) {
+            lines.push(line);
+            line = word;
+        } else {
+            line = candidate;
+        }
+    });
+    if (line) lines.push(line);
+    return lines;
+}
+
+function buildFlashcardImage(card) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1600;
+    canvas.height = 1300;
+    const context = canvas.getContext('2d');
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = '#1cb0f6';
+    context.fillRect(0, 0, canvas.width, 26);
+    context.fillStyle = '#1f2937';
+    context.font = '800 42px sans-serif';
+    context.fillText(`${card.label} DEFENSE PREP`, 80, 110);
+
+    let y = 190;
+    [['QUESTION', card.question, '#1cb0f6'], ['ANSWER', card.answer, '#58cc02']].forEach(([heading, text, color]) => {
+        context.fillStyle = color;
+        context.font = '800 30px sans-serif';
+        context.fillText(heading, 80, y);
+        y += 56;
+        context.fillStyle = '#1f2937';
+        context.font = '600 34px sans-serif';
+        wrapCanvasText(context, text, 1440).forEach((line) => {
+            context.fillText(line, 80, y);
+            y += 48;
+        });
+        y += 64;
+    });
+    return canvas;
+}
+
+async function saveFlashcardImage(canvas, cardNumber) {
+    const filename = `ResearchDefense_Q${cardNumber}.png`;
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+    if (!blob) throw new Error('Could not create the flashcard image.');
+
+    const imageFile = typeof File === 'function'
+        ? new File([blob], filename, { type: 'image/png' })
+        : null;
+    if (imageFile && navigator.canShare && navigator.canShare({ files: [imageFile] })) {
+        await navigator.share({ files: [imageFile], title: 'Defense Prep flashcard' });
+        return;
+    }
+
+    const link = document.createElement('a');
+    link.download = filename;
+    link.href = URL.createObjectURL(blob);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
 }
 
 // Resolve a stored component key to a human-readable name. The card stores

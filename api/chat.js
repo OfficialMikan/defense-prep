@@ -33,7 +33,7 @@ const { retrieve, buildContextText } = require('../lib/retrieve');
 const CHATBOT_MODEL = process.env.GROQ_CHATBOT_MODEL || 'openai/gpt-oss-120b';
 const CHATBOT_FALLBACK_MODEL = process.env.GROQ_CHATBOT_FALLBACK_MODEL || 'openai/gpt-oss-120b';
 const FLASHCARD_MODEL = process.env.GROQ_FLASHCARD_MODEL || 'openai/gpt-oss-120b';
-const FLASHCARD_FALLBACK_MODEL = process.env.GROQ_FLASHCARD_FALLBACK_MODEL || 'openai/gpt-oss-120b';
+const FLASHCARD_FALLBACK_MODEL = process.env.GROQ_FLASHCARD_FALLBACK_MODEL || 'openai/gpt-oss-20b';
 
 // reasoning_effort per request type. Chatbot = "medium", flashcards = "low".
 const CHATBOT_REASONING_EFFORT = process.env.CHATBOT_REASONING_EFFORT || 'medium';
@@ -53,7 +53,10 @@ const MAX_TOTAL_RETRY_MS = 2500;
 // (app.js) + retrieval produce a bounded context slice; this cap keeps the
 // full prompt comfortably within the model's token budget while leaving room
 // for the trailing "respond in this JSON format" instruction.
-const MAX_FLASHCARD_PROMPT_CHARS = 10000;
+// Flashcards need only a few focused excerpts. Keeping this small is critical
+// on the 8K TPM GPT-OSS tier: the former 10K-char cap was also accidentally
+// included twice in the request and could make a single card exceed the limit.
+const MAX_FLASHCARD_PROMPT_CHARS = 3500;
 
 // Cap on the chatbot's retrieved research context (characters). Prevents 8+
 // large chunks from ballooning the prompt; keeps enough context for reliable
@@ -103,7 +106,7 @@ async function callGroq({ model, messages, wantsJsonOut, seed, maxTokens, reason
         model,
         messages,
         temperature: wantsJsonOut ? 0.9 : 0.7,
-        max_tokens: maxTokens || (wantsJsonOut ? 350 : 500)
+        max_tokens: maxTokens || (wantsJsonOut ? 180 : 500)
     };
     if (wantsJsonOut) {
         payload.response_format = FLASHCARD_JSON_SCHEMA;
@@ -225,6 +228,7 @@ async function generate({ messages, wantsJsonOut, seed }) {
     const msg = `AI generation failed. Last error: ${lastError ? lastError.message : 'unknown'}`;
     const err = new Error(msg);
     err.status = lastError?.status || 500;
+    err.retryAfterMs = lastError?.retryAfterMs;
     throw err;
 }
 
@@ -432,7 +436,8 @@ module.exports = async function handler(req, res) {
             if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
                 return res.status(400).json({ error: 'Missing required field: prompt' });
             }
-            const retrievedDump = truncate(contextText, MAX_FLASHCARD_PROMPT_CHARS);
+            const flashcardContext = truncate(contextText, MAX_FLASHCARD_PROMPT_CHARS);
+            const flashcardReferences = truncate(referencesText, 1500);
             modelMessages = [
                 {
                     role: 'system',
@@ -440,7 +445,8 @@ module.exports = async function handler(req, res) {
                 },
                 {
                     role: 'user',
-                    content: `${prompt}\n\n${researchBlock}\n${refBlock}\n\nRetrieved excerpts:\n${retrievedDump}`
+                    content: `${prompt}\n\nRETRIEVED RESEARCH EXCERPTS:\n${flashcardContext || '(no relevant passages retrieved)'}`
+                        + (flashcardReferences ? `\n\nRELEVANT REFERENCES:\n${flashcardReferences}` : '')
                 }
             ];
         } else {
@@ -500,10 +506,15 @@ module.exports = async function handler(req, res) {
     } catch (error) {
         console.error('API Handler Error:', error);
         dbg.error('api/chat', error);
+        const retryAfterMs = Number.isFinite(error.retryAfterMs)
+            ? Math.min(Math.max(error.retryAfterMs, 1000), 60000)
+            : 25000;
         return res.status(error.status || 500).json({
             error: error.status === 429
-                ? 'The AI is getting a lot of requests right now. Please wait a few seconds and try again.'
+                ? 'The AI rate limit was reached. Please wait before generating another card.'
                 : 'The AI service is currently unavailable. Please try again later.'
+            ,
+            ...(error.status === 429 ? { retryAfterMs } : {})
         });
     } finally {
         dbg.log('api/chat', 'Handler finished');
