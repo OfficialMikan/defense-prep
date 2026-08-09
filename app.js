@@ -322,6 +322,9 @@ function loadJsPdf() {
 function loadMammoth() {
     return loadLibrary('https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js');
 }
+function loadPdfJs() {
+    return loadLibrary('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
+}
 
 // Bound the chapter context sent to the AI so we don't blow the token budget.
 // The full chapter is retained in memory (chapterUploadState.chapters) but only
@@ -872,11 +875,12 @@ function renderChapterViewerContent() {
     if (state.activeTab === 'pdf') {
         content.innerHTML = `
 <div class="chapter-preview-meta">PDF preview</div>
-<iframe src="${pdfPath}" title="Chapter ${state.chapterNumber} PDF preview" class="chapter-viewer-frame"></iframe>
+<div id="chapterPdfPreview" class="chapter-pdf-preview" aria-live="polite"><div class="chapter-empty">Loading PDF preview...</div></div>
 <div class="chapter-preview-actions">
     <a class="btn-proposal chapter-viewer-copy" href="${pdfPath}" target="_blank" rel="noopener">Open PDF</a>
 </div>`;
         content.dataset.rawText = '';
+        renderPdfPreview(pdfPath, state.chapterNumber);
         return;
     }
 
@@ -891,6 +895,28 @@ function renderChapterViewerContent() {
     }
 }
 
+async function renderPdfPreview(pdfPath, chapterNumber) {
+    const preview = document.getElementById('chapterPdfPreview');
+    if (!preview) return;
+    try {
+        await loadPdfJs();
+        if (chapterViewerState.activeTab !== 'pdf' || chapterViewerState.chapterNumber !== chapterNumber || !preview.isConnected) return;
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        const documentPdf = await window.pdfjsLib.getDocument(pdfPath).promise;
+        const page = await documentPdf.getPage(1);
+        const viewport = page.getViewport({ scale: 1.5 });
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.ceil(viewport.width);
+        canvas.height = Math.ceil(viewport.height);
+        const context = canvas.getContext('2d', { alpha: false });
+        await page.render({ canvasContext: context, viewport }).promise;
+        if (chapterViewerState.activeTab !== 'pdf' || chapterViewerState.chapterNumber !== chapterNumber || !preview.isConnected) return;
+        preview.replaceChildren(canvas);
+    } catch (error) {
+        console.warn('Could not render PDF preview', error);
+        if (preview.isConnected) preview.innerHTML = '<div class="chapter-empty">The in-app preview could not load. Use Open PDF to view this chapter.</div>';
+    }
+}
 // Switch the active tab (text/pdf/docx) and re-render the viewer content.
 function setChapterViewerTab(tab) {
     if (!chapterViewerState || !['text', 'pdf', 'docx'].includes(tab)) return;
@@ -2064,7 +2090,7 @@ async function captureAndSavePhoto(event) {
         return;
     }
 
-    const photoBtn = document.querySelector('.btn-photo-action');
+    const photoBtn = event.currentTarget || document.querySelector('.btn-photo-action');
     const originalText = photoBtn.innerText;
     photoBtn.innerText = "📷";
 
@@ -2092,7 +2118,18 @@ async function captureAndSavePhoto(event) {
             alert(e.message);
             return;
         }
-        const canvas = await html2canvas(exportZone, { backgroundColor: '#ffffff', scale: 2 });
+        const canvas = await html2canvas(exportZone, {
+            backgroundColor: '#ffffff',
+            scale: 2,
+            onclone: (clonedDocument) => {
+                const clonedZone = clonedDocument.getElementById('photo-export-zone');
+                if (clonedZone) {
+                    Object.assign(clonedZone.style, {
+                        position: 'fixed', top: '0', left: '0', zIndex: '1', visibility: 'visible'
+                    });
+                }
+            }
+        });
         const link = document.createElement('a');
         link.download = `ResearchDefense_Q${executionPointerIndex + 1}.png`;
         link.href = canvas.toDataURL("image/png");

@@ -2608,3 +2608,32 @@ body {
         font-size: 0.75rem;
     }
 }
+/* Keep the card and its wrapper the same responsive height so long answers
+   scroll inside the card instead of overlapping Generate Flashcard. */
+.flashcard-wrapper {
+    height: clamp(380px, 62dvh, 560px);
+    min-height: 0;
+}
+.flashcard,
+.card-face {
+    height: 100%;
+    min-height: 0;
+}
+.chapter-pdf-preview { min-height: 240px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px; border: 1px solid var(--duo-gray); border-radius: 12px; background: #f8f8f8; }
+
+.chapter-pdf-preview canvas { display: block; width: 100%; max-width: 100%; height: auto; border-radius: 6px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16); }
+
+:root.dark-mode .chapter-viewer-modal, :root.dark-mode .chapter-viewer-header, :root.dark-mode .chapter-viewer-toolbar, :root.dark-mode .chapter-viewer-content, :root.dark-mode .chapter-pdf-preview { background: #1f1f1f; color: #f5f5f5; border-color: #404040; }
+
+:root.dark-mode .chapter-viewer-header h3, :root.dark-mode .chapter-viewer-toolbar span, :root.dark-mode .chapter-preview-meta { color: #f5f5f5; }
+
+:root.dark-mode .chapter-viewer-close, :root.dark-mode .chapter-viewer-tab { background: #2d2d2d; color: #f5f5f5; border-color: #505050; }
+:root.dark-mode .chapter-viewer-tab.active { background: var(--duo-blue); color: #fff; border-color: var(--duo-blue); }
+:root.dark-mode .chapter-pdf-preview canvas { filter: invert(0.88) hue-rotate(180deg); }
+
+@media (max-width: 768px) {
+    .flashcard-wrapper { height: clamp(320px, 58dvh, 480px); }
+    .history-item { padding: 16px 14px 60px; }
+    .history-item-label { padding-right: 0; overflow-wrap: normal; word-break: normal; }
+    .history-item :is(.favorite-btn, .delete-btn, .history-report-btn) { top: auto; bottom: 10px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; }
+}

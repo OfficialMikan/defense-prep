@@ -24,7 +24,8 @@ const CDN_URLS = [
     'https://fonts.gstatic.com',
     'https://cdnjs.cloudflare.com/ajax/libs/html2canvas',
     'https://cdnjs.cloudflare.com/ajax/libs/jspdf',
-    'https://cdnjs.cloudflare.com/ajax/libs/mammoth'
+    'https://cdnjs.cloudflare.com/ajax/libs/mammoth',
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js'
 ];
 
 const CHAPTER_FILES = [
