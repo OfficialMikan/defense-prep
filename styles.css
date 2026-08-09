@@ -2078,6 +2078,34 @@ pre.report-detail {
     background-size: 15px;
 }
 
+/* Research component pills must stay readable in dark mode.
+   NOTE: these rules come after the base .component-pill rules and use
+   higher specificity (:root.dark-mode + class), so they win. The
+   .selected state is re-applied so chosen pills remain blue with white
+   text. */
+:root.dark-mode .component-pill {
+    background: #2d2d2d;
+    color: #ffffff;
+    border-color: #404040;
+    border-bottom-color: #2a2a2a;
+}
+
+:root.dark-mode .component-pill:hover {
+    background: #333333;
+    border-color: var(--duo-blue);
+}
+
+:root.dark-mode .component-pill.selected {
+    background: var(--duo-blue);
+    color: white;
+    border-color: var(--duo-blue);
+    border-bottom-color: var(--duo-blue-shadow);
+}
+
+:root.dark-mode .component-pill.selected:hover {
+    background: #3abcf8;
+}
+
 /* Report button inside history items (sidebar) */
 .history-item .history-report-btn {
     position: absolute;
@@ -2509,13 +2537,14 @@ body {
     }
 
     .history-item {
-        padding: 16px 50px 16px 14px;
-        /* room for buttons */
+        padding: 16px 136px 16px 14px;
+        /* room for favorite(10)+delete(50)+flag(90) buttons, each 36px wide */
         min-height: 56px;
     }
 
     .history-item .delete-btn,
-    .history-item .favorite-btn {
+    .history-item .favorite-btn,
+    .history-item .history-report-btn {
         width: 36px;
         height: 36px;
         display: flex;
@@ -2524,7 +2553,11 @@ body {
     }
 
     .history-item .delete-btn {
-        right: 40px;
+        right: 50px;
+    }
+
+    .history-item .history-report-btn {
+        right: 90px;
     }
 }
 

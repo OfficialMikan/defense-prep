@@ -429,6 +429,7 @@ function selectChapter(chapterNumber) {
     window.currentChapter = chapterNumber;
     populateChapterDropdown();
     populateComponentDropdown();
+    populateComponentPills();
     populateChapterPreview();
 }
 
@@ -910,6 +911,7 @@ async function openChapterViewer(chapterNumber = chapterUploadState.activeChapte
     window.currentChapter = chapterNumber;
     populateChapterDropdown();
     populateComponentDropdown();
+    populateComponentPills();
     populateChapterPreview();
 
     // Set viewer state and default to the Text tab.
@@ -993,6 +995,7 @@ async function refreshChapterFiles() {
     }
     populateChapterDropdown();
     populateComponentDropdown();
+    populateComponentPills();
     populateChapterPreview();
 }
 
@@ -2072,6 +2075,14 @@ async function captureAndSavePhoto(event) {
     document.getElementById('export-a').innerText = `A: ${currentCard.answer} `;
 
     const exportZone = document.getElementById('photo-export-zone');
+    // html2canvas cannot render elements positioned far off-screen
+    // (top/left: -9999px) — it produces a blank/black image. Temporarily
+    // move the zone into the viewport (behind everything) for the capture,
+    // then restore it in the finally block.
+    const originalZoneStyle = exportZone.getAttribute('style') || '';
+    exportZone.style.top = '0';
+    exportZone.style.left = '0';
+    exportZone.style.zIndex = '-1';
 
     try {
         // Lazy-load html2canvas on first use so it doesn't block initial render.
@@ -2093,28 +2104,39 @@ async function captureAndSavePhoto(event) {
         console.error("Photo Capture Failed:", error);
         alert("Failed to save photo. Please try again.");
     } finally {
+        exportZone.setAttribute('style', originalZoneStyle);
         photoBtn.innerText = originalText;
     }
+}
+
+// Resolve a stored component key to a human-readable name. The card stores
+// the key (e.g. 'introduction'); look it up in the current chapter's options
+// first, then fall back to the generic list so older cards still resolve.
+function getCardComponentName(card) {
+    const options = getChapterOptions(currentChapter);
+    const match = options.find((o) => o.key === card.component);
+    if (match) return match.name;
+    const generic = (window.GENERIC_COMPONENTS || []).find((o) => o.key === card.component);
+    return generic ? generic.name : (card.component || 'All Components (Random)');
 }
 
 function copyText(event, side) {
     event.stopPropagation();
     let textToCopy = "";
 
-    if (side === 'front') {
-        const currentCard = generatedCardsCollection[executionPointerIndex];
-        if (currentCard) {
-            textToCopy = `Topic: ${currentCard.label} \nQ: ${currentCard.question} \nA: ${currentCard.answer} `;
-        } else {
-            textToCopy = document.getElementById('frontText').innerText;
-        }
+    const currentCard = generatedCardsCollection[executionPointerIndex];
+    if (currentCard) {
+        // Include the chapter and the research component so the copied text
+        // is self-describing when pasted into notes/docs.
+        textToCopy =
+            `Chapter: ${currentCard.label}\n` +
+            `Component: ${getCardComponentName(currentCard)}\n` +
+            `Q: ${currentCard.question}\n` +
+            `A: ${currentCard.answer} `;
+    } else if (side === 'front') {
+        textToCopy = document.getElementById('frontText').innerText;
     } else {
-        const currentCard = generatedCardsCollection[executionPointerIndex];
-        if (currentCard) {
-            textToCopy = `Topic: ${currentCard.label} \nQ: ${currentCard.question} \nA: ${currentCard.answer} `;
-        } else {
-            textToCopy = document.getElementById('backText').innerText;
-        }
+        textToCopy = document.getElementById('backText').innerText;
     }
 
     navigator.clipboard.writeText(textToCopy).then(() => {
@@ -2178,11 +2200,23 @@ function submitCardReport(card, source) {
         return;
     }
 
-    const reason = prompt(
-        'Report this flashcard as inaccurate? (Optional) Tell us what is wrong:',
-        ''
-    );
-    if (reason === null) return; // cancelled
+    // prompt() is blocked in some PWA/embedded webviews, so guard it and
+    // fall back to a confirm dialog so the report can still be submitted.
+    let reason = '';
+    try {
+        reason = prompt(
+            'Report this flashcard as inaccurate? (Optional) Tell us what is wrong:',
+            ''
+        );
+        if (reason === null) return; // cancelled
+    } catch (e) {
+        try {
+            if (!confirm('Report this flashcard as inaccurate?')) return;
+        } catch (e2) {
+            return;
+        }
+        reason = '';
+    }
 
     const report = {
         id: Date.now(),
