@@ -73,6 +73,139 @@ function loadChapterState() {
     }
 }
 
+// ---------------------------------------------------------------------------
+// PERSISTENT PROJECT / SESSION STATE (server-side RAG)
+// ---------------------------------------------------------------------------
+// These identifiers are kept SEPARATE:
+//   accessToken    - anonymous project identity / isolation (server-validated)
+//   sessionId      - browser conversation/session identity
+//   conversationId - persisted conversation identity (from /api/chat)
+//
+// The browser NEVER holds the SUPABASE_SERVICE_ROLE_KEY or any other
+// server-only credential. Only the anonymous `accessToken` is used.
+//
+// accessToken is generated once and reused across sessions (persisted).
+// sessionId is also persisted so a user's conversation can be resumed.
+function getAccessToken() {
+    try {
+        let token = localStorage.getItem('dp_access_token');
+        if (!token) {
+            token = (window.crypto && crypto.randomUUID)
+                ? crypto.randomUUID()
+                : 'u_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 12);
+            localStorage.setItem('dp_access_token', token);
+        }
+        return token;
+    } catch (e) {
+        // localStorage unavailable — fall back to an in-memory token.
+        return 'u_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 12);
+    }
+}
+
+function getSessionId() {
+    try {
+        let sid = localStorage.getItem('dp_session_id');
+        if (!sid) {
+            sid = 's_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+            localStorage.setItem('dp_session_id', sid);
+        }
+        return sid;
+    } catch (e) {
+        return 's_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+    }
+}
+
+// Persisted conversation id (resumed across page loads for the same session).
+let conversationId = null;
+function getConversationId() {
+    if (conversationId) return conversationId;
+    try {
+        const saved = localStorage.getItem('dp_conversation_id');
+        if (saved) conversationId = saved;
+    } catch (e) { /* ignore */ }
+    return conversationId;
+}
+function setConversationId(id) {
+    conversationId = id;
+    try {
+        if (id) localStorage.setItem('dp_conversation_id', id);
+        else localStorage.removeItem('dp_conversation_id');
+    } catch (e) { /* ignore */ }
+}
+
+// ---------------------------------------------------------------------------
+// RESEARCH INGESTION (server-side persistent knowledge base)
+// ---------------------------------------------------------------------------
+// After a chapter/document is loaded, POST it to /api/ingest so it is
+// persistently indexed (sections, chunks, embeddings, citations, references).
+// The backend handles checksum/version idempotency — unchanged content is a
+// no-op. Ingestion is best-effort and non-blocking: failures surface a status
+// but never block the user from continuing.
+
+// Research-index status indicator (index.html element).
+function setResearchStatus(state, detail) {
+    const el = document.getElementById('researchStatus');
+    if (!el) return;
+    const states = {
+        loading: { text: 'Research loading…', cls: 'research-status-loading' },
+        ready: { text: 'Research indexed', cls: 'research-status-ready' },
+        updated: { text: 'Research updated', cls: 'research-status-ready' },
+        failed: { text: 'Research indexing failed', cls: 'research-status-failed' },
+        none: { text: 'No research indexed', cls: 'research-status-loading' }
+    };
+    const s = states[state] || states.none;
+    el.textContent = detail ? `${s.text} — ${detail}` : s.text;
+    el.className = 'research-status ' + s.cls;
+}
+
+async function ingestChapter(scope, docNumber) {
+    const accessToken = getAccessToken();
+    const text = (scope && scope.dataDump) ? scope.dataDump : '';
+    if (!text) return;
+
+    try {
+        const response = await fetch('/api/ingest', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                accessToken,
+                title: scope.title,
+                docNumber,
+                fileType: 'txt',
+                text
+            })
+        });
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.error || ('Ingest failed (HTTP ' + response.status + ')'));
+        }
+        const data = await response.json();
+        if (data.skipped) {
+            setResearchStatus('ready', `Chapter ${docNumber} unchanged`);
+        } else {
+            setResearchStatus(data.embeddings ? 'updated' : 'updated', `Chapter ${docNumber} indexed`);
+        }
+        return data;
+    } catch (error) {
+        dbgError('ingestChapter', `Failed to index Chapter ${docNumber}:`, error);
+        setResearchStatus('failed', `Chapter ${docNumber}`);
+        return null;
+    }
+}
+
+// Queue ingestion for all loaded/available chapters (best-effort, parallel).
+async function ingestAllLoadedChapters() {
+    const available = [1, 2, 3, 4, 5].filter((n) => isChapterAvailable(n));
+    if (available.length === 0) {
+        setResearchStatus('none');
+        return;
+    }
+    setResearchStatus('loading', available.length + ' chapter(s)');
+    const results = await Promise.all(available.map((n) => ingestChapter(getChapterScope(n), n)));
+    const ok = results.filter(Boolean).length;
+    setResearchStatus(ok > 0 ? 'ready' : 'failed', ok + ' of ' + available.length + ' indexed');
+}
+
 // Single source of truth for chapter component options. Reads from
 // chapter-config.js (window.CHAPTER_CONFIG) with a generic fallback so the
 // app and the config file can never drift out of sync.
@@ -102,6 +235,8 @@ function isChapterAvailable(chapterNumber) {
     return Boolean(chapterUploadState && chapterUploadState.chapters && chapterUploadState.chapters[chapterNumber]);
 }
 
+// Multi-select state: Set of selected component keys
+let selectedComponents = new Set(['all']);
 let generatedCardsCollection = [];
 let executionPointerIndex = -1;
 let currentDifficulty = 'medium';
@@ -250,12 +385,18 @@ window.addEventListener('DOMContentLoaded', () => {
     loadChatHistory();
     populateChapterDropdown();
     populateComponentDropdown();
+    populateComponentPills(); // Initialize multi-select pills
     loadChapterFilesFromFolder().finally(() => {
         // Re-populate the dropdowns after the folder scan so any newly loaded
         // chapters are reflected in the UI without needing a full reload.
         populateChapterDropdown();
         populateComponentDropdown();
+        populateComponentPills();
         populateChapterPreview();
+        // Index the loaded chapters into the persistent research knowledge
+        // base. Best-effort and non-blocking (the status indicator reflects
+        // the outcome; the UI is never blocked).
+        ingestAllLoadedChapters();
     });
 
     bindChapterPreviewClick();
@@ -541,6 +682,43 @@ function selectSectionsForQuery(scope, query, topN = 2) {
     return top.map((r) => `[${r.section.heading}]\n${r.section.text}`).join('\n\n');
 }
 
+// PREMIUM INLINE FORMATTING: scans an already-escaped HTML string and wraps
+// high-value tokens in styled spans so the chapter preview reads like a
+// polished academic document. Two passes are used so the tokens are never
+// double-wrapped and the regexes never match inside our own inserted tags.
+// - Citations: "(Author, 2020)" / "Author (2020)" / "(2020)"
+// - Statistics: numbers, percentages, means, correlation coefficients, p-values
+// - Key terms: bolded **...** fragments survive as emphasis
+function applyPremiumInline(escapedHtml) {
+    if (!escapedHtml) return escapedHtml;
+    let out = escapedHtml;
+
+    // Citations — author-year combos first, then bare years.
+    out = out.replace(
+        /(\([A-Z][a-zA-Z''-]+(?:\s+(?:et al\.?|&\s+[A-Z][a-zA-Z''-]+))?(?:,\s*)?(?:\d{4}[a-z]?)?\))/g,
+        '<span class="premium-citation">$1</span>'
+    );
+    out = out.replace(/((?:[A-Z][a-zA-Z''-]+(?:\s+(?:et al\.?|&\s+[A-Z][a-zA-Z''-]+))?)\s*\(\d{4}[a-z]?\))/g,
+        '<span class="premium-citation">$1</span>');
+    out = out.replace(/(\(\d{4}[a-z]?\))/g, '<span class="premium-citation">$1</span>');
+
+    // Statistics — isolated numbers, percentages, decimals, p-values, r-values.
+    out = out.replace(
+        /(\b(?:p|r|R)\s*[=<>]\s*\d*\.?\d+|\b\d+(?:\.\d+)?(?:\s*%|\s*percent)?\b)/g,
+        '<span class="premium-stat">$1</span>'
+    );
+    // Weighted-mean / correlation phrases.
+    out = out.replace(
+        /(\bweighted\s+mean\b|\bPearson[- ]r\b|\bcorrelation\s+coefficient\b)/gi,
+        '<span class="premium-stat">$1</span>'
+    );
+
+    // Bold emphasis **...** (legacy markdown-style headings in the raw text).
+    out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+
+    return out;
+}
+
 // Convert a chapter's raw text into richly formatted, safe HTML.
 // All-caps lines are treated as section headings; numbered items become
 // ordered lists; everything else becomes a paragraph. All content is escaped
@@ -580,16 +758,16 @@ function buildStyledChapterText(text) {
 
     const html = blocks.map((block) => {
         if (block && block.type === 'heading') {
-            return `<h4 class="chapter-styled-heading">${escapeHtml(block.text)}</h4>`;
+            return `<h4 class="chapter-styled-heading">${applyPremiumInline(escapeHtml(block.text))}</h4>`;
         }
         const text = block;
         // Numbered list items: "1. text" or "a. text"
         if (/^\s*\d+[.)]\s+/.test(text) || /^\s*[a-d][.)]\s+/.test(text)) {
             const items = text.split(/\n+/).map((part) => part.trim()).filter(Boolean);
-            const lis = items.map((item) => `<li>${escapeHtml(item.replace(/^\s*\d+[.)]\s+/, '').replace(/^\s*[a-d][.)]\s+/, ''))}</li>`).join('');
+            const lis = items.map((item) => `<li>${applyPremiumInline(escapeHtml(item.replace(/^\s*\d+[.)]\s+/, '').replace(/^\s*[a-d][.)]\s+/, '')))}</li>`).join('');
             return `<ol class="chapter-styled-list">${lis}</ol>`;
         }
-        return `<p class="chapter-styled-paragraph">${escapeHtml(text)}</p>`;
+        return `<p class="chapter-styled-paragraph">${applyPremiumInline(escapeHtml(text))}</p>`;
     }).join('\n');
 
     return html;
@@ -616,9 +794,9 @@ function buildChapterPreviewText(text) {
         const lines = block.split('\n').map((l) => l.trim());
         const parts = lines.map((line) => {
             if (/^[A-Z][A-Z\s&'’.\-/]{1,}$/.test(line) && line.length >= 2 && line.length <= 80) {
-                return `<h4 class="chapter-styled-heading">${escapeHtml(line)}</h4>`;
+                return `<h4 class="chapter-styled-heading">${applyPremiumInline(escapeHtml(line))}</h4>`;
             }
-            return `<p class="chapter-styled-paragraph">${escapeHtml(line)}</p>`;
+            return `<p class="chapter-styled-paragraph">${applyPremiumInline(escapeHtml(line))}</p>`;
         });
         return parts.join('');
     }).join('');
@@ -994,6 +1172,261 @@ function setDifficulty(difficulty) {
     }
 }
 
+// ---------------------------------------------------------------------------
+// DYNAMIC MULTI-COMPONENT SELECTOR (pill-based UI)
+// ---------------------------------------------------------------------------
+// Replaces the static single-select dropdown with a dynamic multi-select
+// checkbox pill container generated on-the-fly from the parsed headings
+// of the loaded chapter. Students can select multiple sections and get
+// combined flashcard questions.
+
+function populateComponentPills() {
+    const container = document.getElementById('componentPillsContainer');
+    const hint = document.getElementById('componentHint');
+    if (!container) return;
+
+    const availableOptions = getChapterOptions(currentChapter);
+    container.innerHTML = '';
+
+    availableOptions.forEach((option) => {
+        if (!option.available) return;
+
+        const pill = document.createElement('button');
+        pill.type = 'button';
+        pill.className = 'component-pill';
+        pill.dataset.key = option.key;
+        pill.textContent = option.name;
+        pill.setAttribute('role', 'checkbox');
+        pill.setAttribute('aria-checked', selectedComponents.has(option.key) ? 'true' : 'false');
+
+        if (selectedComponents.has(option.key)) {
+            pill.classList.add('selected');
+        }
+
+        pill.addEventListener('click', () => toggleComponentPill(option.key));
+        container.appendChild(pill);
+    });
+
+    // Update hint text
+    if (hint) {
+        const selected = [...selectedComponents];
+        if (selected.includes('all') || selected.length === 0) {
+            hint.textContent = 'All components selected (random mode).';
+        } else {
+            const selectedNames = availableOptions
+                .filter((o) => selectedComponents.has(o.key))
+                .map((o) => o.name)
+                .join(', ');
+            hint.textContent = `Selected: ${selectedNames}`;
+        }
+    }
+}
+
+function toggleComponentPill(key) {
+    if (key === 'all') {
+        // "All" is exclusive - selecting it clears everything else
+        selectedComponents.clear();
+        selectedComponents.add('all');
+        currentComponent = 'all';
+    } else {
+        // Toggle the specific component
+        if (selectedComponents.has(key)) {
+            selectedComponents.delete(key);
+        } else {
+            selectedComponents.add(key);
+        }
+        // Remove 'all' if selecting specific components
+        selectedComponents.delete('all');
+
+        // If nothing selected, fall back to 'all'
+        if (selectedComponents.size === 0) {
+            selectedComponents.add('all');
+        }
+
+        // Update currentComponent to first selected (for backward compat)
+        currentComponent = [...selectedComponents][0] || 'all';
+    }
+
+    // Update pill visual states
+    document.querySelectorAll('.component-pill').forEach((pill) => {
+        const pillKey = pill.dataset.key;
+        const isSelected = selectedComponents.has(pillKey);
+        pill.classList.toggle('selected', isSelected);
+        pill.setAttribute('aria-checked', isSelected ? 'true' : 'false');
+    });
+
+    // Update hint
+    populateComponentPills();
+
+    dbgLog('toggleComponentPill', 'Selected components:', [...selectedComponents]);
+}
+
+function getSelectedComponents() {
+    return [...selectedComponents];
+}
+
+// Merge text from multiple sections (for multi-select flashcard generation)
+function selectSectionsForComponents(scope, componentKeys) {
+    if (!componentKeys || componentKeys.length === 0) {
+        return scope.dataDump;
+    }
+
+    // If 'all' is selected, use the whole chapter
+    if (componentKeys.includes('all')) {
+        return scope.dataDump;
+    }
+
+    const sections = splitChapterIntoSections(scope.dataDump);
+    if (sections.length === 0) return scope.dataDump;
+
+    const mergedTexts = [];
+
+    for (const key of componentKeys) {
+        const keywords = COMPONENT_KEYWORDS[key];
+        if (!keywords) continue;
+
+        let bestSection = null;
+        let bestScore = 0;
+
+        for (const section of sections) {
+            let score = 0;
+            for (const kw of keywords) {
+                if (section.text.toLowerCase().includes(kw)) score += 1;
+                if (section.heading.toLowerCase().includes(kw)) score += 2;
+            }
+            if (score > bestScore) {
+                bestScore = score;
+                bestSection = section;
+            }
+        }
+
+        if (bestSection) {
+            mergedTexts.push(`[${bestSection.heading}]\n${bestSection.text}`);
+        }
+    }
+
+    if (mergedTexts.length === 0) {
+        return scope.dataDump;
+    }
+
+    return mergedTexts.join('\n\n');
+}
+
+// ---------------------------------------------------------------------------
+// CITATION-REFERENCE CROSS-LINKING (sentence-level RAG)
+// ---------------------------------------------------------------------------
+// Scans for citation patterns (e.g., (Smith, 2020)) in the text and user
+// queries, then searches the References section line-by-line to inject
+// only the matching citation lines into the AI context.
+
+const CITATION_PATTERNS = [
+    // (Author, Year) or (Author Year)
+    /\(([A-Z][a-zA-Z''-]+(?:\s+(?:et\s+al\.?|&\s+[A-Z][a-zA-Z''-]+))?(?:\s*,\s*\d{4}[a-z]?)?)\)/g,
+    // Author (Year) - name followed by year in parentheses
+    /([A-Z][a-zA-Z''-]+(?:\s+(?:et\s+al\.?|&\s+[A-Z][a-zA-Z''-]+))?)\s*\((\d{4}[a-z]?)\)/g,
+    // Year-only citations like (2020) or (Smith, 2020)
+    /\((\d{4}[a-z]?)\)/g
+];
+
+// Extract all citation keys from a text
+function extractCitations(text) {
+    const citations = new Set();
+    const patterns = [
+        /\(([A-Z][a-zA-Z''-]+(?:\s+(?:et\s+al\.?|&\s+[A-Z][a-zA-Z''-]+))?(?:\s*,\s*)?(\d{4}[a-z]?)?)\)/g,
+        /([A-Z][a-zA-Z''-]+(?:\s+(?:et\s+al\.?|&\s+[A-Z][a-zA-Z''-]+))?)\s*\((\d{4}[a-z]?)\)/g
+    ];
+
+    for (const pattern of patterns) {
+        let match;
+        while ((match = pattern.exec(text)) !== null) {
+            const citation = match[1].trim();
+            if (citation.length > 1) {
+                citations.add(citation);
+            }
+        }
+    }
+
+    return [...citations];
+}
+
+// Find the References section in the chapter text
+function findReferencesSection(text) {
+    const lines = text.split('\n');
+    let inReferences = false;
+    const refLines = [];
+
+    for (const line of lines) {
+        const trimmed = line.trim();
+        // Detect References heading
+        if (/^references$/i.test(trimmed) || /^\*\*references\*\*$/i.test(trimmed)) {
+            inReferences = true;
+            continue;
+        }
+        // Stop at next major section
+        if (inReferences && /^[*]{0,2}\s*[A-Z][A-Z\s]{3,}$/.test(trimmed)) {
+            break;
+        }
+        if (inReferences && trimmed) {
+            refLines.push(trimmed);
+        }
+    }
+
+    return refLines.join('\n');
+}
+
+// Match citations to reference lines
+function matchCitationsToReferences(text, citations) {
+    if (!citations || citations.length === 0) return '';
+
+    const refSection = findReferencesSection(text);
+    if (!refSection) return '';
+
+    const refLines = refSection.split('\n').filter((l) => l.trim());
+    const matchedLines = [];
+
+    for (const citation of citations) {
+        // Extract author name and year from citation
+        const authorMatch = citation.match(/^([A-Z][a-zA-Z''-]+)/);
+        const yearMatch = citation.match(/(\d{4})/);
+
+        if (!authorMatch) continue;
+
+        const author = authorMatch[1].toLowerCase();
+        const year = yearMatch ? yearMatch[1] : null;
+
+        for (const line of refLines) {
+            const lineLower = line.toLowerCase();
+            // Match by author name
+            if (lineLower.includes(author)) {
+                // If year is specified, also check for it
+                if (!year || lineLower.includes(year)) {
+                    matchedLines.push(line);
+                    break; // One match per citation
+                }
+            }
+        }
+    }
+
+    if (matchedLines.length === 0) return '';
+
+    return '\n\nREFERENCES (relevant):\n' + matchedLines.join('\n');
+}
+
+// Inject citation references into the chapter text for AI context
+function injectCitationReferences(text, query) {
+    // Extract citations from both the chapter text and the query
+    const textCitations = extractCitations(text);
+    const queryCitations = extractCitations(query);
+    const allCitations = [...new Set([...textCitations, ...queryCitations])];
+
+    if (allCitations.length === 0) return text;
+
+    const refs = matchCitationsToReferences(text, allCitations);
+    if (!refs) return text;
+
+    return text + refs;
+}
+
 function setComponentFromDropdown() {
     const dropdown = document.getElementById('componentDropdown');
     currentComponent = dropdown.value;
@@ -1073,237 +1506,240 @@ function setCardCover(visible, label) {
 
 async function triggerInterrogation() {
     try {
-    // 1. Check if history limit reached
-    if (generatedCardsCollection.length >= MAX_HISTORY_SIZE) {
-        alert('Your lesson history is getting very full! Please Reset Levels to keep performance fast. Maximum ' + MAX_HISTORY_SIZE + ' items allowed.');
-        return;
-    }
-
-    // Prevent double-clicks while a request is already in flight.
-    const btn = document.querySelector('.btn-generate-large');
-    if (btn && btn.classList.contains('is-loading')) return;
-
-    // Cooldown between generations to protect the Groq TPM budget. If the user
-    // clicks too soon, show a friendly "warming up" message instead of firing
-    // another request that would likely hit a 429.
-    const elapsed = Date.now() - lastGenerationAt;
-    if (lastGenerationAt > 0 && elapsed < GENERATION_COOLDOWN_MS) {
-        const waitSec = Math.ceil((GENERATION_COOLDOWN_MS - elapsed) / 1000);
-        showErrorModal('The AI is warming up. Please wait about ' + waitSec + ' second(s) before generating another flashcard.');
-        return;
-    }
-
-    // Show "Thinking..." on the button and an opaque cover over the flashcard.
-    setGenerateButtonBusy(true, 'Thinking...');
-    // Detect which side of the card is currently visible so the cover label
-    // reads "Generating Answer" when the user is on the answer side.
-    const cardIsFlipped = document.getElementById('flashcard').classList.contains('flipped');
-    setCardCover(true, cardIsFlipped ? 'Generating Answer...' : 'Generating Question...');
-
-    // 2. Prepare the prompt with difficulty and component
-    let scopeMetadata;
-    try {
-        scopeMetadata = await ensureChapterContent();
-    } catch (e) {
-        setGenerateButtonBusy(false);
-        setCardCover(false);
-        showErrorModal(e.message);
-        return;
-    }
-
-    // Determine the effective component to query. When "all", pick one at
-    // random so the generated card varies across sections.
-    const availableComponents = getChapterOptions(currentChapter)
-        .filter((option) => option.available && option.key !== 'all');
-    let effectiveComponentKey = currentComponent;
-    if (effectiveComponentKey === 'all' || !availableComponents.some((o) => o.key === effectiveComponentKey)) {
-        effectiveComponentKey = availableComponents[Math.floor(Math.random() * availableComponents.length)]?.key || 'all';
-    }
-
-    // SECTION-BASED RETRIEVAL: instead of sending a truncated slice of the
-    // whole chapter, pull ONLY the section(s) most relevant to the selected
-    // component. The full research is still in memory (chapterUploadState),
-    // so nothing is forgotten — but we only spend tokens on the relevant part.
-    const sectionDump = selectSectionForComponent(scopeMetadata, effectiveComponentKey);
-    const compactDump = truncateDump(sectionDump, MAX_FLASHCARD_DUMP_CHARS);
-
-    // Randomly rotate question angles so consecutive generations stay varied.
-    const questionAngles = [
-        'ask them to justify a specific choice they made (for example, a design, method, sampling technique, or instrument) and explain why it was appropriate',
-        'ask them to explain a key concept or term from the proposal and how it applies to their study',
-        'ask them to identify and elaborate on a specific detail such as the number of respondents, the variables, the indicators, or the statistical test used',
-        'ask them how they will address a practical concern such as bias, validity, reliability, or respondent honesty',
-        'ask them to connect one part of their study (theoretical framework, problem, methodology) to another and justify the link',
-        'ask them about the expected contribution, significance, or limitations of their study based only on what they wrote',
-        'ask them to clarify the exact procedure or step they will follow for a given activity',
-        'challenge them on a potential weakness or inconsistency visible in their proposal and ask how they will defend or address it'
-    ];
-    const randomAngle = questionAngles[Math.floor(Math.random() * questionAngles.length)];
-
-    let difficultyPrompt = "";
-    switch (currentDifficulty) {
-        case 'easy':
-            difficultyPrompt = "Ask a basic, factual question that focuses on fundamental concepts and data directly stated in the proposal.";
-            break;
-        case 'medium':
-            difficultyPrompt = "Ask a moderate question that tests understanding of the methodology and application of the research data.";
-            break;
-        case 'hard':
-            difficultyPrompt = "Ask a challenging question that requires critical analysis, deeper reasoning, and interpretation of the proposal's methodology and implications.";
-            break;
-    }
-
-    let componentPrompt = "";
-    if (currentComponent === 'all') {
-        const randomComponent = availableComponents[Math.floor(Math.random() * availableComponents.length)] || { name: 'main aspect' };
-        componentPrompt = `Focus the question specifically on the ${randomComponent.name} section of the research proposal.`;
-    } else {
-        const componentObj = availableComponents.find((option) => option.key === currentComponent);
-        if (componentObj) {
-            componentPrompt = `Focus the question specifically on the ${componentObj.name} section of the research proposal.`;
-        } else {
-            componentPrompt = "Focus on any key aspect of the research proposal.";
+        // 1. Check if history limit reached
+        if (generatedCardsCollection.length >= MAX_HISTORY_SIZE) {
+            alert('Your lesson history is getting very full! Please Reset Levels to keep performance fast. Maximum ' + MAX_HISTORY_SIZE + ' items allowed.');
+            return;
         }
-    }
+
+        // Prevent double-clicks while a request is already in flight.
+        const btn = document.querySelector('.btn-generate-large');
+        if (btn && btn.classList.contains('is-loading')) return;
+
+        // Cooldown between generations to protect the Groq TPM budget. If the user
+        // clicks too soon, show a friendly "warming up" message instead of firing
+        // another request that would likely hit a 429.
+        const elapsed = Date.now() - lastGenerationAt;
+        if (lastGenerationAt > 0 && elapsed < GENERATION_COOLDOWN_MS) {
+            const waitSec = Math.ceil((GENERATION_COOLDOWN_MS - elapsed) / 1000);
+            showErrorModal('The AI is warming up. Please wait about ' + waitSec + ' second(s) before generating another flashcard.');
+            return;
+        }
+
+        // Show "Thinking..." on the button and an opaque cover over the flashcard.
+        setGenerateButtonBusy(true, 'Thinking...');
+        // Detect which side of the card is currently visible so the cover label
+        // reads "Generating Answer" when the user is on the answer side.
+        const cardIsFlipped = document.getElementById('flashcard').classList.contains('flipped');
+        setCardCover(true, cardIsFlipped ? 'Generating Answer...' : 'Generating Question...');
+
+        // 2. Prepare the prompt with difficulty and component
+        let scopeMetadata;
+        try {
+            scopeMetadata = await ensureChapterContent();
+        } catch (e) {
+            setGenerateButtonBusy(false);
+            setCardCover(false);
+            showErrorModal(e.message);
+            return;
+        }
+
+        // Multi-select component handling. The selected pill keys drive which
+        // components the server-side retrieval should boost. The full research is
+        // indexed in the persistent knowledge base, so the server retrieves the
+        // relevant chunks. When "all" is selected we pass it through as-is so the
+        // server treats it as cross-component retrieval (no component boost).
+        const availableComponents = getChapterOptions(currentChapter)
+            .filter((option) => option.available && option.key !== 'all');
+        const selectedKeys = getSelectedComponents();
+        const hasSpecificSelection = selectedKeys.length > 0 && !selectedKeys.includes('all');
+        // The component keys sent to the server for metadata-aware retrieval.
+        const selectedComponentsForApi = hasSpecificSelection ? selectedKeys : ['all'];
+
+        // Randomly rotate question angles so consecutive generations stay varied.
+        const questionAngles = [
+            'ask them to justify a specific choice they made (for example, a design, method, sampling technique, or instrument) and explain why it was appropriate',
+            'ask them to explain a key concept or term from the proposal and how it applies to their study',
+            'ask them to identify and elaborate on a specific detail such as the number of respondents, the variables, the indicators, or the statistical test used',
+            'ask them how they will address a practical concern such as bias, validity, reliability, or respondent honesty',
+            'ask them to connect one part of their study (theoretical framework, problem, methodology) to another and justify the link',
+            'ask them about the expected contribution, significance, or limitations of their study based only on what they wrote',
+            'ask them to clarify the exact procedure or step they will follow for a given activity',
+            'challenge them on a potential weakness or inconsistency visible in their proposal and ask how they will defend or address it'
+        ];
+        const randomAngle = questionAngles[Math.floor(Math.random() * questionAngles.length)];
+
+        let difficultyPrompt = "";
+        switch (currentDifficulty) {
+            case 'easy':
+                difficultyPrompt = "Ask a basic, factual question that focuses on fundamental concepts and data directly stated in the proposal.";
+                break;
+            case 'medium':
+                difficultyPrompt = "Ask a moderate question that tests understanding of the methodology and application of the research data.";
+                break;
+            case 'hard':
+                difficultyPrompt = "Ask a challenging question that requires critical analysis, deeper reasoning, and interpretation of the proposal's methodology and implications.";
+                break;
+        }
+
+        let componentPrompt = "";
+        if (hasSpecificSelection) {
+            // Multiple sections selected — tell the AI to draw from all of them.
+            const selectedNames = availableComponents
+                .filter((option) => selectedKeys.includes(option.key))
+                .map((option) => option.name);
+            if (selectedNames.length) {
+                componentPrompt = `Focus the question on the following sections of the research proposal: ${selectedNames.join(' and ')}. Draw from the combined content of these sections.`;
+            } else {
+                componentPrompt = "Focus on any key aspect of the research proposal.";
+            }
+        } else {
+            const randomComponent = availableComponents[Math.floor(Math.random() * availableComponents.length)] || { name: 'main aspect' };
+            componentPrompt = `Focus the question specifically on the ${randomComponent.name} section of the research proposal.`;
+        }
 
 
-    const instructionPrompt = `You are a strict, highly critical Senior High School research panel defense judge.Your sole source of absolute truth is the research proposal provided below.
+        const instructionPrompt = `You are a strict, highly critical Senior High School research panel defense judge. Your sole source of absolute truth is the retrieved research content provided by the system.
 
 CRITICAL EXECUTION PROTOCOLS:
-                    1. TRUST THE DATA: When evaluating a question, you must read all sections of the matching proposal. 
-2. EXTRACTION OVER GUESSING: If the information is present or clearly implied by their methodology / sampling, extract it.Do NOT guess outside information.
-3. NO LAZY REFUSALS: You are prohibited from responding with "This information is not explicitly detailed" if the answer can be synthesized from the text.
-4. QUESTION FORMAT: Frame questions as if directly asking the researchers(e.g., "What sampling method did you use?" not "According to your...")
-                    5. ANSWER FORMAT: Frame answers in third person plural('The researchers...') as if the researchers are responding
-                    6. CONTEXTUAL LIMITATION: ONLY use information from the provided research proposal
-                    7. RESPONSE FORMAT: Provide ONLY valid JSON in this exact format: { "question": "your question here", "answer": "your answer here" }
-                    8. VARIETY: The question and answer must be concrete and specific to the actual text below.Do NOT use generic template questions nor generic template answers.Quote or directly reference specific facts, names, numbers, or methods found in the proposal.
-        9. UNIQUENESS: Generate a fresh, distinct question / answer pair each time.Vary the focus and wording; never repeat the same generic phrasing across generations.
+1. TRUST THE DATA: When evaluating a question, you must read all retrieved sections of the matching proposal.
+2. EXTRACTION OVER GUESSING: If the information is present or clearly implied by their methodology / sampling, extract it. Do NOT guess outside information.
+3. NO LAZY REFUSALS: You are prohibited from responding with "This information is not explicitly detailed" if the answer can be synthesized from the retrieved text.
+4. QUESTION FORMAT: Frame questions as if directly asking the researchers (e.g., "What sampling method did you use?" not "According to your...").
+5. ANSWER FORMAT: Frame answers in third person plural ('The researchers...') as if the researchers are responding.
+6. CONTEXTUAL LIMITATION: ONLY use information from the retrieved research content provided by the system.
+7. RESPONSE FORMAT: Provide ONLY valid JSON in this exact format: { "question": "your question here", "answer": "your answer here" }.
+8. VARIETY: The question and answer must be concrete and specific to the retrieved content. Do NOT use generic template questions nor generic template answers. Quote or directly reference specific facts, names, numbers, or methods found in the retrieved research.
+9. UNIQUENESS: Generate a fresh, distinct question / answer pair each time. Vary the focus and wording; never repeat the same generic phrasing across generations.
 
-RESEARCH PROPOSAL:
-${compactDump || "No research data available."}
+Now, as a panelist, ${randomAngle}. ${difficultyPrompt} ${componentPrompt} Base your question and the researchers' answer (in third person plural 'The researchers...') ONLY on information found in the retrieved research content. Provide the question and answer in JSON format: { "question": "...", "answer": "..." } `;
 
-Now, as a panelist, ${randomAngle}.${difficultyPrompt} ${componentPrompt} Base your question and the researchers' answer (in third person plural 'The researchers...') ONLY on information found in the proposal above.Provide the question and answer in JSON format: { "question": "...", "answer": "..." } `;
-
-    let structuredData = null;
-    let generationError = null;
-    // Only 2 attempts, and a real error (network/429/500/parse failure) now
-    // stops the loop immediately instead of trying again - see the `break`
-    // in the catch block below. The loop only continues past attempt 1 when
-    // the AI returned a perfectly valid answer that happened to be a
-    // near-duplicate of a recent question. This, combined with /api/chat.js
-    // no longer retrying the same rate-limited model, is what stops a single
-    // click from silently firing a dozen-plus requests at Groq.
-    const MAX_GENERATION_ATTEMPTS = 2;
-    for (let attempt = 0; attempt < MAX_GENERATION_ATTEMPTS; attempt++) {
-        try {
-            const seed = Date.now() + attempt;
-            const controller = new AbortController();
-            // Fail-fast client cap: 15s. If the request exceeds this the user
-            // gets a clear error instantly instead of an endless spinner.
-            const timeout = setTimeout(() => controller.abort(), 15000);
-            let response;
+        let structuredData = null;
+        let generationError = null;
+        // Only 2 attempts, and a real error (network/429/500/parse failure) now
+        // stops the loop immediately instead of trying again - see the `break`
+        // in the catch block below. The loop only continues past attempt 1 when
+        // the AI returned a perfectly valid answer that happened to be a
+        // near-duplicate of a recent question. This, combined with /api/chat.js
+        // no longer retrying the same rate-limited model, is what stops a single
+        // click from silently firing a dozen-plus requests at Groq.
+        const MAX_GENERATION_ATTEMPTS = 2;
+        for (let attempt = 0; attempt < MAX_GENERATION_ATTEMPTS; attempt++) {
             try {
-                response = await fetch("/api/chat", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ prompt: instructionPrompt, json: true, seed }),
-                    signal: controller.signal
-                });
-            } catch (err) {
+                const seed = Date.now() + attempt;
+                const controller = new AbortController();
+                // Fail-fast client cap: 15s. If the request exceeds this the user
+                // gets a clear error instantly instead of an endless spinner.
+                const timeout = setTimeout(() => controller.abort(), 15000);
+                let response;
+                try {
+                    response = await fetch("/api/chat", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            prompt: instructionPrompt,
+                            json: true,
+                            seed,
+                            accessToken: getAccessToken(),
+                            selectedComponents: selectedComponentsForApi,
+                            selectedChapter: currentChapter
+                        }),
+                        signal: controller.signal
+                    });
+                } catch (err) {
+                    clearTimeout(timeout);
+                    if (err.name === 'AbortError') {
+                        throw new Error('The AI service took too long to respond. Please try again.');
+                    }
+                    throw err;
+                }
                 clearTimeout(timeout);
-                if (err.name === 'AbortError') {
-                    throw new Error('The AI service took too long to respond. Please try again.');
+
+                if (!response.ok) {
+                    const errBody = await response.json().catch(() => ({}));
+                    throw new Error(`${errBody.error || ('Server error ' + response.status)}`);
                 }
-                throw err;
-            }
-            clearTimeout(timeout);
 
-            if (!response.ok) {
-                const errBody = await response.json().catch(() => ({}));
-                throw new Error(`${errBody.error || ('Server error ' + response.status)}`);
-            }
+                const parsedPackage = await response.json();
 
-            const parsedPackage = await response.json();
-
-            let candidate;
-            try {
-                candidate = JSON.parse(parsedPackage.choices[0].message.content);
-            } catch (parseError) {
-                const content = parsedPackage.choices[0].message.content;
-                const jsonMatch = content.match(/\{.*\}/s);
-                if (jsonMatch) {
-                    candidate = JSON.parse(jsonMatch[0]);
-                } else {
-                    throw new Error("Could not extract valid JSON from AI response");
+                let candidate;
+                try {
+                    candidate = JSON.parse(parsedPackage.choices[0].message.content);
+                } catch (parseError) {
+                    const content = parsedPackage.choices[0].message.content;
+                    const jsonMatch = content.match(/\{.*\}/s);
+                    if (jsonMatch) {
+                        candidate = JSON.parse(jsonMatch[0]);
+                    } else {
+                        throw new Error("Could not extract valid JSON from AI response");
+                    }
                 }
-            }
 
-            if (!validateFlashcardCandidate(candidate)) {
-                throw new Error("AI response missing question or answer");
-            }
+                if (!validateFlashcardCandidate(candidate)) {
+                    throw new Error("AI response missing question or answer");
+                }
 
-            // Reject near-duplicate questions so consecutive generations stay fresh.
-            if (!isNearDuplicateQuestion(candidate.question)) {
-                structuredData = candidate;
-                rememberRecentQuestion(candidate.question);
+                // Reject near-duplicate questions so consecutive generations stay fresh.
+                if (!isNearDuplicateQuestion(candidate.question)) {
+                    structuredData = candidate;
+                    rememberRecentQuestion(candidate.question);
+                    break;
+                }
+                dbgLog('triggerInterrogation', `Attempt ${attempt + 1} produced a near-duplicate question; regenerating...`);
+            } catch (error) {
+                // Fail fast: the server (/api/chat.js) already tried a primary
+                // model and a fallback model internally, so a real error here
+                // means both failed. Looping again from the client would just
+                // fire another full primary+fallback round at an already
+                // rate-limited or unavailable service. Surface the error instead.
+                generationError = error;
+                dbgError('triggerInterrogation', 'AI generation failed on attempt ' + (attempt + 1), error);
                 break;
             }
-            dbgLog('triggerInterrogation', `Attempt ${attempt + 1} produced a near-duplicate question; regenerating...`);
-        } catch (error) {
-            // Fail fast: the server (/api/chat.js) already tried a primary
-            // model and a fallback model internally, so a real error here
-            // means both failed. Looping again from the client would just
-            // fire another full primary+fallback round at an already
-            // rate-limited or unavailable service. Surface the error instead.
-            generationError = error;
-            dbgError('triggerInterrogation', 'AI generation failed on attempt ' + (attempt + 1), error);
-            break;
+        } // end for loop
+
+        if (!generationError && !structuredData && recentQuestions.length) {
+            // Ensure any unexpected error also surfaces as a user-friendly message.
+            dbgLog('triggerInterrogation', 'No structured data generated after all attempts');
         }
-    } // end for loop
 
-    if (!generationError && !structuredData && recentQuestions.length) {
-        // Ensure any unexpected error also surfaces as a user-friendly message.
-        dbgLog('triggerInterrogation', 'No structured data generated after all attempts');
-    }
+        if (!structuredData) {
+            setGenerateButtonBusy(false);
+            setCardCover(false);
+            showErrorModal(generationError && generationError.message
+                ? generationError.message
+                : 'The AI service is currently unavailable. Please try again later.');
+            return;
+        }
 
-    if (!structuredData) {
+        generatedCardsCollection.push({
+            id: Date.now(),
+            label: `${scopeMetadata.title.replace(/\s+/g, ' ').trim()}`,
+            question: structuredData.question,
+            answer: structuredData.answer,
+            difficulty: currentDifficulty,
+            component: currentComponent,
+            timestamp: new Date().toISOString(),
+            favorite: false
+        });
+
+        executionPointerIndex = generatedCardsCollection.length - 1;
+        localStorage.setItem('mcesi_sim_history', JSON.stringify(generatedCardsCollection));
+
+        // Record the completion time so the cooldown gate above prevents rapid
+        // back-to-back generations that would trigger Groq 429 rate limits.
+        lastGenerationAt = Date.now();
+
+        // Restore the button label and remove the flashcard cover now that the
+        // new card is ready to show.
         setGenerateButtonBusy(false);
         setCardCover(false);
-        showErrorModal(generationError && generationError.message
-            ? generationError.message
-            : 'The AI service is currently unavailable. Please try again later.');
-        return;
-    }
 
-    generatedCardsCollection.push({
-        id: Date.now(),
-        label: `${scopeMetadata.title.replace(/\s+/g, ' ').trim()}`,
-        question: structuredData.question,
-        answer: structuredData.answer,
-        difficulty: currentDifficulty,
-        component: currentComponent,
-        timestamp: new Date().toISOString(),
-        favorite: false
-    });
-
-    executionPointerIndex = generatedCardsCollection.length - 1;
-    localStorage.setItem('mcesi_sim_history', JSON.stringify(generatedCardsCollection));
-
-    // Record the completion time so the cooldown gate above prevents rapid
-    // back-to-back generations that would trigger Groq 429 rate limits.
-    lastGenerationAt = Date.now();
-
-    // Restore the button label and remove the flashcard cover now that the
-    // new card is ready to show.
-    setGenerateButtonBusy(false);
-    setCardCover(false);
-
-    renderHistoryPanelUI();
-    syncCardDisplaySurface();
-    if (typeof trackEvent === 'function') {
-        trackEvent('flashcard', { chapter: scopeMetadata.title, difficulty: currentDifficulty, component: currentComponent });
-    }
+        renderHistoryPanelUI();
+        syncCardDisplaySurface();
+        if (typeof trackEvent === 'function') {
+            trackEvent('flashcard', { chapter: scopeMetadata.title, difficulty: currentDifficulty, component: currentComponent });
+        }
     } catch (unexpected) {
         dbgError('triggerInterrogation', unexpected);
         setGenerateButtonBusy(false);
@@ -1840,10 +2276,8 @@ async function sendMessage() {
         }));
         history.push({ role: 'user', content: message });
 
-        // SECTION-BASED RETRIEVAL: pull only the sections most relevant to the
-        // user's question instead of sending the whole chapter. This keeps the
-        // AI focused on the relevant parts while saving tokens.
-        const relevantSections = selectSectionsForQuery(scopeMetadata, message, 2);
+        // The server performs retrieval against the persistent knowledge base
+        // and injects the relevant context + references into the prompt.
 
         // Call AI service with memory (messages) + compact chapter context.
         const controller = new AbortController();
@@ -1855,7 +2289,12 @@ async function sendMessage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     messages: history,
-                    chapter: relevantSections
+                    accessToken: getAccessToken(),
+                    sessionId: getSessionId(),
+                    conversationId: getConversationId(),
+                    userMessage: message,
+                    selectedComponents: ['all'],
+                    selectedChapter: currentChapter
                 }),
                 signal: controller.signal
             });
@@ -1874,6 +2313,11 @@ async function sendMessage() {
         }
 
         const data = await response.json();
+        // Persist the server-assigned conversation id so later messages in the
+        // same session resume the same conversation memory.
+        if (data.conversationId) {
+            setConversationId(data.conversationId);
+        }
         let answer = data.choices[0].message.content;
 
         // Handle JSON responses

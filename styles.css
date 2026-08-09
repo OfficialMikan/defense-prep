@@ -651,12 +651,80 @@ body {
     border-color: var(--duo-blue);
 }
 
+/* ---------------------------------------------------------------------------
+   DYNAMIC MULTI-COMPONENT SELECTOR (pill-based UI)
+   --------------------------------------------------------------------------- */
+.component-pills-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    padding: 10px;
+    max-width: 100%;
+}
+
+.component-pill {
+    padding: 8px 16px;
+    border: 2px solid var(--duo-gray);
+    border-bottom: 4px solid var(--duo-gray-shadow);
+    border-radius: 20px;
+    background: white;
+    color: var(--text-dark);
+    font-family: var(--font);
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+}
+
+.component-pill:hover {
+    border-color: var(--duo-blue);
+    background: #f0f9ff;
+}
+
+.component-pill:active {
+    border-bottom-width: 2px;
+    transform: translateY(2px);
+}
+
+.component-pill.selected {
+    background: var(--duo-blue);
+    color: white;
+    border-color: var(--duo-blue);
+    border-bottom-color: var(--duo-blue-shadow);
+}
+
+.component-pill.selected:hover {
+    background: #3abcf8;
+}
+
 .component-hint {
     font-size: 0.85rem;
     color: var(--text-muted);
     text-align: center;
     margin-top: -8px;
     margin-bottom: 12px;
+}
+
+.research-status {
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-align: center;
+    margin-top: -8px;
+    margin-bottom: 12px;
+}
+
+.research-status-loading {
+    color: var(--duo-blue);
+}
+
+.research-status-ready {
+    color: var(--duo-green);
+}
+
+.research-status-failed {
+    color: var(--duo-red);
 }
 
 .flashcard-section {
@@ -1165,6 +1233,33 @@ pre.report-detail {
     line-height: 1.7;
     margin: 0 0 10px;
     white-space: pre-wrap;
+}
+
+/* Premium academic inline formatting (applied by applyPremiumInline) */
+.premium-citation {
+    color: var(--duo-purple);
+    font-weight: 700;
+    background: rgba(164, 76, 255, 0.08);
+    border-radius: 4px;
+    padding: 0 2px;
+}
+
+.premium-stat {
+    color: var(--duo-blue);
+    font-weight: 800;
+    background: rgba(28, 176, 246, 0.10);
+    border-radius: 4px;
+    padding: 0 2px;
+}
+
+:root.dark-mode .premium-citation {
+    color: #c79bff;
+    background: rgba(164, 76, 255, 0.16);
+}
+
+:root.dark-mode .premium-stat {
+    color: #6fd4ff;
+    background: rgba(28, 176, 246, 0.18);
 }
 
 .chapter-styled-list {

@@ -106,7 +106,8 @@
         <div class="chapter-viewer-modal" onclick="event.stopPropagation()">
             <div class="chapter-viewer-header">
                 <h3 id="chapterViewerTitle">Chapter</h3>
-                <button class="chapter-viewer-close" onclick="closeChapterViewer()" aria-label="Close chapter viewer">×</button>
+                <button class="chapter-viewer-close" onclick="closeChapterViewer()"
+                    aria-label="Close chapter viewer">×</button>
             </div>
             <div class="chapter-viewer-toolbar">
                 <span id="chapterViewerSubtitle">Document viewer</span>
@@ -192,23 +193,32 @@
             <div class="selectors-container">
                 <div class="selectors-title">Select Difficulty</div>
                 <div class="difficulty-selector" role="group" aria-label="Select difficulty">
-                    <button class="btn-difficulty btn-easy" onclick="setDifficulty('easy')" aria-pressed="false">Easy</button>
-                    <button class="btn-difficulty btn-medium" onclick="setDifficulty('medium')" aria-pressed="true">Medium</button>
-                    <button class="btn-difficulty btn-hard" onclick="setDifficulty('hard')" aria-pressed="false">Hard</button>
+                    <button class="btn-difficulty btn-easy" onclick="setDifficulty('easy')"
+                        aria-pressed="false">Easy</button>
+                    <button class="btn-difficulty btn-medium" onclick="setDifficulty('medium')"
+                        aria-pressed="true">Medium</button>
+                    <button class="btn-difficulty btn-hard" onclick="setDifficulty('hard')"
+                        aria-pressed="false">Hard</button>
                 </div>
 
                 <div class="selectors-title">Select Chapter</div>
                 <div class="component-selector">
-                    <select class="component-dropdown" id="chapterDropdown"
-                        onchange="setChapterFromDropdown()" aria-label="Select chapter"></select>
+                    <select class="component-dropdown" id="chapterDropdown" onchange="setChapterFromDropdown()"
+                        aria-label="Select chapter"></select>
                 </div>
 
                 <div class="selectors-title">Select Research Component</div>
                 <div class="component-selector">
-                    <select class="component-dropdown" id="componentDropdown"
-                        onchange="setComponentFromDropdown()" aria-label="Select research component"></select>
+                    <!-- Dynamic multi-select pill container (populated by app.js) -->
+                    <div class="component-pills-container" id="componentPillsContainer" role="group"
+                        aria-label="Select research components"></div>
+                    <!-- Legacy dropdown kept for accessibility fallback -->
+                    <select class="component-dropdown" id="componentDropdown" onchange="setComponentFromDropdown()"
+                        aria-label="Select research component" hidden></select>
                 </div>
                 <div class="component-hint" id="componentHint" aria-live="polite">Loading chapter options…</div>
+                <!-- Research knowledge-base status (populated by app.js) -->
+                <div class="research-status" id="researchStatus" aria-live="polite"></div>
             </div>
 
             <div class="flashcard-section">
