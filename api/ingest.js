@@ -79,7 +79,20 @@ async function resolveProject(accessToken, title) {
         .select('id,title,access_token')
         .single();
     if (createErr) {
-        dbg.error('api/ingest', createErr);
+        dbg.error('api/ingest', 'project insert error: ' + (createErr.message || JSON.stringify({ code: createErr.code })));
+        // RACE CONDITION: Two concurrent requests with the same access_token can
+        // both pass the SELECT above and race to INSERT. The second INSERT fails
+        // with a unique-constraint violation on access_token. Retry the SELECT —
+        // if the project now exists, we're done; otherwise surface the error.
+        let { data: retryData, error: retryErr } = await supabase
+            .from('research_projects')
+            .select('id,title,access_token')
+            .eq('access_token', accessToken)
+            .maybeSingle();
+        if (retryErr) {
+            dbg.error('api/ingest', 'project lookup retry error: ' + retryErr.message);
+        }
+        if (retryData) return retryData;
         const e = new Error('Could not create research project');
         e.status = 502;
         throw e;
