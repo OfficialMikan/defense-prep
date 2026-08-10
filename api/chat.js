@@ -585,15 +585,16 @@ module.exports = async function handler(req, res) {
     } catch (error) {
         console.error('API Handler Error:', error);
         dbg.error('api/chat', error);
-        const retryAfterMs = Number.isFinite(error.retryAfterMs)
+        const errStatus = (error && typeof error === 'object' && typeof error.status === 'number') ? error.status : 500;
+        const retryAfterMs = (error && Number.isFinite(error.retryAfterMs))
             ? Math.min(Math.max(error.retryAfterMs, 1000), 60000)
             : 25000;
-        return res.status(error.status || 500).json({
-            error: error.status === 429
+        return res.status(errStatus).json({
+            error: errStatus === 429
                 ? 'The AI rate limit was reached. Please wait before generating another card.'
                 : 'The AI service is currently unavailable. Please try again later.'
             ,
-            ...(error.status === 429 ? { retryAfterMs } : {})
+            ...(errStatus === 429 ? { retryAfterMs } : {})
         });
     } finally {
         dbg.log('api/chat', 'Handler finished');

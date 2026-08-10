@@ -1026,145 +1026,15 @@ async function refreshChapterFiles() {
     populateChapterPreview();
 }
 
-// Build the standard list of chapter file paths for chapters 1-5.
-function getChapterFilePaths() {
-    return [
-        { number: 1, textPath: '/data/chapters/chapter-1.txt', pdfPath: '/data/chapters/chapter-1.pdf', docxPath: '/data/chapters/chapter-1.docx' },
-        { number: 2, textPath: '/data/chapters/chapter-2.txt', pdfPath: '/data/chapters/chapter-2.pdf', docxPath: '/data/chapters/chapter-2.docx' },
-        { number: 3, textPath: '/data/chapters/chapter-3.txt', pdfPath: '/data/chapters/chapter-3.pdf', docxPath: '/data/chapters/chapter-3.docx' },
-        { number: 4, textPath: '/data/chapters/chapter-4.txt', pdfPath: '/data/chapters/chapter-4.pdf', docxPath: '/data/chapters/chapter-4.docx' },
-        { number: 5, textPath: '/data/chapters/chapter-5.txt', pdfPath: '/data/chapters/chapter-5.pdf', docxPath: '/data/chapters/chapter-5.docx' }
-    ];
-}
+// Note: Chapter file loading and docx parsing are handled by chapter-loader.js
+
 
 // Lazily ensure a single chapter's content is loaded into memory, then refresh
 // the UI. Used by the Refresh Files button and auto-detection so the app only
 // fetches what's actually needed instead of all five chapters at once.
-async function loadChapterEntry(number) {
-    const entry = getChapterFilePaths().find((e) => e.number === number);
-    if (!entry) return;
-    try {
-        const textResponse = await fetch(entry.textPath, { cache: 'no-store' });
-        if (textResponse.ok) {
-            const text = (await textResponse.text()).trim();
-            if (text) {
-                chapterUploadState.chapters[number] = {
-                    title: `Chapter ${number} `,
-                    dataDump: normalizeChapterText(text),
-                    pdfPath: entry.pdfPath,
-                    textPath: entry.textPath,
-                    docxPath: entry.docxPath
-                };
-                saveChapterState();
-                return;
-            }
-        }
-        const docxResponse = await fetch(entry.docxPath, { cache: 'no-store' });
-        if (!docxResponse.ok) return;
-        await loadMammoth();
-        const arrayBuffer = await docxResponse.arrayBuffer();
-        const extracted = await mammoth.extractRawText({ arrayBuffer });
-        const text = extracted.value || '';
-        if (text.trim()) {
-            chapterUploadState.chapters[number] = {
-                title: `Chapter ${number} `,
-                dataDump: normalizeChapterText(text),
-                pdfPath: entry.pdfPath,
-                textPath: entry.textPath,
-                docxPath: entry.docxPath
-            };
-            saveChapterState();
-        }
-    } catch (error) {
-        console.warn(`Could not load ${entry.textPath} `, error);
-    }
-}
 
-async function loadChapterFilesFromFolder() {
-    const chapterFiles = getChapterFilePaths();
 
-    const loadedChapters = {};
-    for (const entry of chapterFiles) {
-        try {
-            const textResponse = await fetch(entry.textPath, { cache: 'no-store' });
-            if (textResponse.ok) {
-                const text = (await textResponse.text()).trim();
-                if (text) {
-                    loadedChapters[entry.number] = {
-                        title: `Chapter ${entry.number} `,
-                        dataDump: normalizeChapterText(text),
-                        pdfPath: entry.pdfPath,
-                        textPath: entry.textPath,
-                        docxPath: entry.docxPath
-                    };
-                    continue;
-                }
-            }
 
-            const docxResponse = await fetch(entry.docxPath, { cache: 'no-store' });
-            if (!docxResponse.ok) continue;
-            await loadMammoth();
-            const arrayBuffer = await docxResponse.arrayBuffer();
-            const extracted = await mammoth.extractRawText({ arrayBuffer });
-            const text = extracted.value || '';
-            if (text.trim()) {
-                loadedChapters[entry.number] = {
-                    title: `Chapter ${entry.number} `,
-                    dataDump: normalizeChapterText(text),
-                    pdfPath: entry.pdfPath,
-                    textPath: entry.textPath,
-                    docxPath: entry.docxPath
-                };
-            }
-        } catch (error) {
-            console.warn(`Could not load ${entry.textPath} `, error);
-        }
-    }
-
-    if (Object.keys(loadedChapters).length) {
-        // Merge fresh results into existing state, and PRESERVE the currently
-        // selected chapter (if it is still available) instead of always forcing
-        // chapter 1. This way a refresh never yanks the user back to the start.
-        if (!chapterUploadState.chapters) chapterUploadState.chapters = {};
-        Object.assign(chapterUploadState.chapters, loadedChapters);
-        if (!isChapterAvailable(chapterUploadState.activeChapter)) {
-            for (let n = 1; n <= 5; n++) {
-                if (isChapterAvailable(n)) { chapterUploadState.activeChapter = n; break; }
-            }
-        }
-        saveChapterState();
-    }
-}
-
-function parseDocxChapters(text) {
-    const normalized = (text || '').replace(/\r/g, '\n').trim();
-    if (!normalized) {
-        return {};
-    }
-
-    const chapterMatches = [...normalized.matchAll(/\bchapter\s*(i|ii|iii|iv|v|[1-5])\b/gi)];
-    if (chapterMatches.length > 0) {
-        const parsedChapters = {};
-        chapterMatches.forEach((match, index) => {
-            const chapterLabel = match[1].toLowerCase();
-            const chapterNumber = romanToNumber(chapterLabel) || Number(chapterLabel);
-            const startIndex = match.index + match[0].length;
-            const endIndex = chapterMatches[index + 1] ? chapterMatches[index + 1].index : normalized.length;
-            const content = normalized.slice(startIndex, endIndex).replace(/\s+/g, ' ').trim();
-            if (chapterNumber >= 1 && chapterNumber <= 5 && content) {
-                parsedChapters[chapterNumber] = content;
-            }
-        });
-        return parsedChapters;
-    }
-
-    return { 1: normalized.replace(/\s+/g, ' ').trim() };
-}
-
-function romanToNumber(value) {
-    const romanMap = { i: 1, ii: 2, iii: 3, iv: 4, v: 5 };
-    return romanMap[value.toLowerCase()] || null;
-}
 
 function loadChatHistory() {
     const messagesContainer = document.getElementById('chatbotMessages');
@@ -2515,30 +2385,21 @@ async function sendMessage() {
 }
 
 
+function escapeHtml(str) {
+    return String(str || '')
+        .replace(/&/g, '&')
+        .replace(/</g, '<')
+        .replace(/>/g, '>')
+        .replace(/"/g, '"')
+        .replace(/'/g, '&#39;');
+}
+
 // Escape HTML to prevent injection, then render a small, safe subset of
 // Markdown (bold, italic, inline code, bullet/numbered lists, and line
 // breaks) so AI chat replies show up nicely formatted.
-function escapeHtml(str) {
-    return String(str || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
-
-function escapeHtmlSafe(str) {
-    return String(str || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
-
 function renderMarkdown(text) {
     if (!text) return '';
-    let html = escapeHtmlSafe(text);
+    let html = escapeHtml(text);
 
     // Code blocks (```...```) -> <pre><code>
     html = html.replace(/```([\s\S]*?)```/g, (m, code) => `<pre class="md-code"><code>${code}</code></pre>`);
@@ -2588,17 +2449,25 @@ function addMessageToChat(message, sender) {
         messageElement.textContent = message;
     }
 
-    // Add long press copy functionality for bot messages
+    // Add long press copy functionality for bot messages. Uses an overlay badge
+    // so the rendered Markdown inside messageElement is never wiped to plain
+    // text (which the old textContent-based approach used to do).
     if (sender === 'bot') {
         messageElement.addEventListener('contextmenu', function (e) {
             e.preventDefault();
             navigator.clipboard.writeText(message).then(() => {
-                // Show temporary feedback
-                const originalText = messageElement.textContent;
-                messageElement.textContent = "Copied!";
-                setTimeout(() => {
-                    messageElement.textContent = originalText;
-                }, 1000);
+                let badge = messageElement.querySelector('.copied-badge');
+                if (!badge) {
+                    badge = document.createElement('span');
+                    badge.className = 'copied-badge';
+                    badge.textContent = 'Copied!';
+                    messageElement.appendChild(badge);
+                }
+                badge.classList.remove('copied-badge-show');
+                // Force a reflow so the animation restarts on rapid copy.
+                void badge.offsetWidth;
+                badge.classList.add('copied-badge-show');
+                setTimeout(() => badge.classList.remove('copied-badge-show'), 1200);
             });
         });
     }

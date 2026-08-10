@@ -129,7 +129,9 @@ async function indexDocument(project, doc, text, fileType) {
             .single();
         if (secErr) {
             dbg.error('api/ingest', 'section insert failed: ' + secErr.message);
-            continue;
+            const err = new Error('Failed to insert research section: ' + secErr.message);
+            err.status = 502;
+            throw err;
         }
 
         // ---- Chunks ----

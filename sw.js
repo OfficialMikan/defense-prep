@@ -119,8 +119,10 @@ self.addEventListener('fetch', (event) => {
             try {
                 const response = await fetch(request);
                 if (response.ok) {
-                    const cache = await openCache();
-                    cache.put(request, response.clone());
+                    try {
+                        const cache = await openCache();
+                        await cache.put(request, response.clone());
+                    } catch { /* ignore cache write failure */ }
                 }
                 return response;
             } catch {
@@ -135,8 +137,10 @@ self.addEventListener('fetch', (event) => {
             const cached = await caches.match(request);
             const network = fetch(request).then(async (response) => {
                 if (response.ok) {
-                    const cache = await openCache();
-                    cache.put(request, response.clone());
+                    try {
+                        const cache = await openCache();
+                        await cache.put(request, response.clone());
+                    } catch { /* ignore cache write failure */ }
                 }
                 return response;
             }).catch(() => cached);
@@ -153,8 +157,10 @@ self.addEventListener('fetch', (event) => {
                     request.destination === 'script' ||
                     request.destination === 'style' ||
                     request.destination === 'font')) {
-                    const cache = await openCache();
-                    cache.put(request, response.clone());
+                    try {
+                        const cache = await openCache();
+                        await cache.put(request, response.clone());
+                    } catch { /* ignore cache write failure */ }
                 }
                 return response;
             } catch {
