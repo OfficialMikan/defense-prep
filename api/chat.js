@@ -2,7 +2,7 @@
 // CommonJS export so it works on Vercel serverless (Node runtime) regardless
 // of whether package.json declares "type": "module".
 //
-// Single AI provider: Groq. All questions/answers are generated against the
+// OpenAI-primary generation with Groq fallback. All questions/answers are generated against the
 // persistent research knowledge base. Retrieval happens FIRST (hybrid
 // keyword + semantic + metadata + citation) via lib/retrieve.js, then the
 // retrieved context + conversation memory are injected into the final LLM call.
@@ -10,14 +10,13 @@
 // ---------------------------------------------------------------------------
 // MODELS
 // ---------------------------------------------------------------------------
-// Both chatbot and flashcards use `openai/gpt-oss-120b` (the requirement).
-// The only difference is reasoning_effort:
-//   - Chatbot:   reasoning_effort = "medium"
-//   - Flashcard: reasoning_effort = "low"  (extraction-only, stays fast/cheap)
+// OpenAI is primary for reliable structured output and higher throughput. Groq
+// remains a compatible fallback so a transient provider outage does not block
+// students from practicing.
 //
 // RELIABILITY:
-//   - Each feature has a primary + fallback model (same 120b by default).
-//   - On a 429 we jump straight to the fallback model's separate bucket.
+//   - Each feature has OpenAI primary/fallback models, then a Groq fallback chain.
+//   - On a 429 we jump straight to the next available model/provider.
 //   - A short single retry is still used for transient 5xx server errors.
 //   - The TOTAL time spent sleeping across retries is capped so a request
 //     never appears "stuck".
@@ -30,21 +29,22 @@ const { supabase } = require('../lib/supabase');
 const { retrieve, buildContextText } = require('../lib/retrieve');
 
 // Model selection -----------------------------------------------------------
-const CHATBOT_MODEL = process.env.GROQ_CHATBOT_MODEL || 'openai/gpt-oss-120b';
-const CHATBOT_FALLBACK_MODEL = process.env.GROQ_CHATBOT_FALLBACK_MODEL || 'openai/gpt-oss-120b';
-const FLASHCARD_MODEL = process.env.GROQ_FLASHCARD_MODEL || 'openai/gpt-oss-120b';
-const FLASHCARD_FALLBACK_MODEL = process.env.GROQ_FLASHCARD_FALLBACK_MODEL || 'openai/gpt-oss-20b';
-
-// reasoning_effort per request type. Chatbot = "medium", flashcards = "low".
-const CHATBOT_REASONING_EFFORT = process.env.CHATBOT_REASONING_EFFORT || 'medium';
-const FLASHCARD_REASONING_EFFORT = process.env.FLASHCARD_REASONING_EFFORT || 'low';
-
-// reasoning_effort is only supported by the gpt-oss and qwen3 model families.
-function supportsReasoningEffort(model) {
-    return /^openai\/gpt-oss-|^qwen\//.test(model);
-}
+// OpenAI is primary (real, current model names). Groq is the secondary chain.
+// All values are env-overridable so a deploy can pin a specific model without
+// editing this file. The chosen model families (gpt-4.1, llama-3.x) do not
+// accept `reasoning_effort`, so the field is intentionally omitted from both
+// providers' request payloads.
+const OPENAI_CHATBOT_MODEL = process.env.OPENAI_CHATBOT_MODEL || 'gpt-4.1-mini';
+const OPENAI_CHATBOT_FALLBACK_MODEL = process.env.OPENAI_CHATBOT_FALLBACK_MODEL || 'gpt-4.1-nano';
+const OPENAI_FLASHCARD_MODEL = process.env.OPENAI_FLASHCARD_MODEL || 'gpt-4.1-mini';
+const OPENAI_FLASHCARD_FALLBACK_MODEL = process.env.OPENAI_FLASHCARD_FALLBACK_MODEL || 'gpt-4.1-nano';
+const CHATBOT_MODEL = process.env.GROQ_CHATBOT_MODEL || 'llama-3.1-8b-instant';
+const CHATBOT_FALLBACK_MODEL = process.env.GROQ_CHATBOT_FALLBACK_MODEL || 'llama-3.3-70b-versatile';
+const FLASHCARD_MODEL = process.env.GROQ_FLASHCARD_MODEL || 'llama-3.1-8b-instant';
+const FLASHCARD_FALLBACK_MODEL = process.env.GROQ_FLASHCARD_FALLBACK_MODEL || 'llama-3.3-70b-versatile';
 
 const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
+const OPENAI_ENDPOINT = process.env.OPENAI_CHAT_BASE_URL || 'https://api.openai.com/v1/chat/completions';
 
 // Hard cap on how long we are willing to wait across all retries/fallbacks.
 const MAX_TOTAL_RETRY_MS = 2500;
@@ -64,7 +64,7 @@ const MAX_FLASHCARD_PROMPT_CHARS = 3500;
 // research map are small and bounded separately.
 const MAX_CHAT_CONTEXT_CHARS = 6000;
 
-// Per-call timeout for the Groq request (aborts so the client never hangs).
+// Per-call provider timeout (aborts so the client never hangs).
 const REQUEST_TIMEOUT_MS = 20000;
 
 function truncate(str, max) {
@@ -73,7 +73,7 @@ function truncate(str, max) {
     return str.slice(0, max) + '…';
 }
 
-// Strict JSON Schema for flashcards. Using json_schema means Groq enforces the
+// Strict JSON Schema for flashcards. Using json_schema means the provider enforces the
 // exact shape server-side, so we no longer depend on the model "remembering"
 // to wrap its answer correctly - fewer malformed responses = fewer retries.
 const FLASHCARD_JSON_SCHEMA = {
@@ -94,7 +94,7 @@ const FLASHCARD_JSON_SCHEMA = {
 };
 
 // ---------------------------------------------------------------------------
-async function callGroq({ model, messages, wantsJsonOut, seed, maxTokens, reasoningEffort }) {
+async function callGroq({ model, messages, wantsJsonOut, seed, maxTokens }) {
     const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) {
         const err = new Error('GROQ_API_KEY not configured');
@@ -113,10 +113,6 @@ async function callGroq({ model, messages, wantsJsonOut, seed, maxTokens, reason
     }
     if (typeof seed === 'number') {
         payload.seed = seed;
-    }
-    if (supportsReasoningEffort(model)) {
-        payload.reasoning_effort = reasoningEffort || (wantsJsonOut ? FLASHCARD_REASONING_EFFORT : CHATBOT_REASONING_EFFORT);
-        payload.include_reasoning = false;
     }
 
     const controller = new AbortController();
@@ -162,6 +158,62 @@ async function callGroq({ model, messages, wantsJsonOut, seed, maxTokens, reason
     return { content };
 }
 
+async function callOpenAI({ model, messages, wantsJsonOut }) {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+        const err = new Error('OPENAI_API_KEY not configured');
+        err.status = 500;
+        throw err;
+    }
+
+    const payload = {
+        model,
+        messages,
+        max_completion_tokens: wantsJsonOut ? 180 : 500
+    };
+    if (wantsJsonOut) payload.response_format = FLASHCARD_JSON_SCHEMA;
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    let res;
+    try {
+        res = await fetch(OPENAI_ENDPOINT, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload),
+            signal: controller.signal
+        });
+    } catch (err) {
+        clearTimeout(timeout);
+        if (err.name === 'AbortError') {
+            const timeoutError = new Error('AI request timed out');
+            timeoutError.status = 504;
+            throw timeoutError;
+        }
+        throw err;
+    }
+    clearTimeout(timeout);
+
+    if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        const err = new Error(`OpenAI API status ${res.status}: ${errText.slice(0, 300)}`);
+        err.status = res.status;
+        if (res.status === 429) {
+            const retryAfter = parseFloat(res.headers.get('Retry-After') || '');
+            err.retryAfterMs = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 3000;
+        }
+        throw err;
+    }
+
+    const data = await res.json();
+    const content = data?.choices?.[0]?.message?.content;
+    if (!content) throw new Error('OpenAI returned an empty response');
+    return { content };
+}
+
 // ---------------------------------------------------------------------------
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -171,24 +223,43 @@ function isServerHiccup(err) {
     return Boolean(err.status && err.status >= 500);
 }
 
-// Generation with a bounded retry + automatic fallback to a second model.
-// Policy per model in the chain:
+// Generation with a bounded retry + OpenAI-primary provider fallback.
+// Policy per provider/model in the chain:
 //   - 429            -> no local retry, move to the next model immediately
 //   - 5xx            -> one quick retry on the same model, then move on
 //   - non-retryable  -> stop entirely (e.g. bad request / auth)
 async function generate({ messages, wantsJsonOut, seed }) {
-    const primaryModel = wantsJsonOut ? FLASHCARD_MODEL : CHATBOT_MODEL;
-    const fallbackModel = wantsJsonOut ? FLASHCARD_FALLBACK_MODEL : CHATBOT_FALLBACK_MODEL;
-
-    const models = [primaryModel];
-    if (fallbackModel && fallbackModel !== primaryModel) {
-        models.push(fallbackModel);
+    const openaiModels = wantsJsonOut
+        ? [OPENAI_FLASHCARD_MODEL, OPENAI_FLASHCARD_FALLBACK_MODEL]
+        : [OPENAI_CHATBOT_MODEL, OPENAI_CHATBOT_FALLBACK_MODEL];
+    const groqModels = wantsJsonOut
+        ? [FLASHCARD_MODEL, FLASHCARD_FALLBACK_MODEL]
+        : [CHATBOT_MODEL, CHATBOT_FALLBACK_MODEL];
+    const candidates = [];
+    if (process.env.OPENAI_API_KEY) {
+        openaiModels.filter(Boolean).forEach((model) => {
+            if (!candidates.some((entry) => entry.provider === 'openai' && entry.model === model)) {
+                candidates.push({ provider: 'openai', model });
+            }
+        });
+    }
+    if (process.env.GROQ_API_KEY) {
+        groqModels.filter(Boolean).forEach((model) => {
+            if (!candidates.some((entry) => entry.provider === 'groq' && entry.model === model)) {
+                candidates.push({ provider: 'groq', model });
+            }
+        });
+    }
+    if (!candidates.length) {
+        const err = new Error('No AI provider is configured');
+        err.status = 500;
+        throw err;
     }
 
     let lastError = null;
     let totalSleepMs = 0;
 
-    for (const model of models) {
+    for (const candidate of candidates) {
         for (let attempt = 0; attempt < 2; attempt++) {
             if (attempt > 0) {
                 let waitMs = 800;
@@ -196,23 +267,31 @@ async function generate({ messages, wantsJsonOut, seed }) {
                     waitMs = Math.max(0, MAX_TOTAL_RETRY_MS - totalSleepMs);
                 }
                 totalSleepMs += waitMs;
-                dbg.log('api/chat', `Retrying Groq (${model}) after ${waitMs}ms (server hiccup)`);
+                dbg.log('api/chat', `Retrying ${candidate.provider} (${candidate.model}) after ${waitMs}ms (server hiccup)`);
                 await sleep(waitMs);
             }
             try {
-                const result = await callGroq({
-                    model,
+                const request = {
+                    model: candidate.model,
                     messages,
                     wantsJsonOut,
-                    seed,
-                    reasoningEffort: wantsJsonOut ? FLASHCARD_REASONING_EFFORT : CHATBOT_REASONING_EFFORT
-                });
-                dbg.log('api/chat', `Success via Groq (${model})`);
+                    seed
+                };
+                const result = candidate.provider === 'openai'
+                    ? await callOpenAI(request)
+                    : await callGroq(request);
+                dbg.log('api/chat', `Success via ${candidate.provider} (${candidate.model})`);
                 return result;
             } catch (err) {
                 lastError = err;
-                dbg.error('api/chat', `Groq error (${model}): ${err.message}`);
+                dbg.error('api/chat', `${candidate.provider} error (${candidate.model}): ${err.message}`);
                 if (err.status === 429) {
+                    break;
+                }
+                // A misconfigured or temporarily unavailable OpenAI account
+                // should not take the app down when the optional Groq backup is
+                // available. Keep malformed Groq requests fail-fast instead.
+                if (candidate.provider === 'openai' && candidates.some((entry) => entry.provider === 'groq')) {
                     break;
                 }
                 if (!isServerHiccup(err)) {

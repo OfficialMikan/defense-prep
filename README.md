@@ -37,7 +37,12 @@ Then open `http://localhost:8080` (or the port Vercel assigns).
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `GROQ_API_KEY` | Yes | Groq API key for `/api/chat` |
+| `OPENAI_API_KEY` | Yes | OpenAI API key; primary provider for `/api/chat` and embeddings |
+| `GROQ_API_KEY` | Optional | Groq backup provider for `/api/chat` |
+| `OPENAI_CHATBOT_MODEL` | Optional | Defaults to `gpt-4.1-mini` |
+| `OPENAI_FLASHCARD_MODEL` | Optional | Defaults to `gpt-4.1-mini` |
+| `OPENAI_CHATBOT_FALLBACK_MODEL` | Optional | Defaults to `gpt-4.1-nano` |
+| `OPENAI_FLASHCARD_FALLBACK_MODEL` | Optional | Defaults to `gpt-4.1-nano` |
 | `ADMIN_PASS` | For admin | Password for the analytics dashboard |
 | `KV_REST_API_URL` | Optional | Vercel KV URL for persistent analytics |
 | `KV_REST_API_TOKEN` | Optional | Vercel KV token |
@@ -70,8 +75,7 @@ npx vercel --prod
 
 ## AI backend
 
-The app uses **Groq** (`openai/gpt-oss-20b` / `openai/gpt-oss-120b`) via
-`/api/chat.js`. API keys stay server-side — never exposed in the browser.
+The app uses **OpenAI** (`gpt-4.1-mini` / `gpt-4.1-nano`) as its primary provider, with **Groq** (`llama-3.1-8b-instant` / `llama-3.3-70b-versatile`) as a fallback chain via `/api/chat.js`. API keys stay server-side — never exposed in the browser.
 
 ## Security notes
 
