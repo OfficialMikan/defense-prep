@@ -22,6 +22,7 @@
 const { supabase } = require('../lib/supabase');
 const dbg = require('./debug');
 const { retrieve, buildContextText } = require('../lib/retrieve');
+const { checkAdminAuth } = require('../lib/adminAuth');
 
 module.exports = async function handler(req, res) {
     const scope = 'api/retrieve';
@@ -67,19 +68,30 @@ module.exports = async function handler(req, res) {
         const contextText = buildContextText(result.chunks, result.researchMap);
 
         dbg.log(scope, `Retrieved ${result.chunks.length} chunks for project ${result.project.id}`);
-        return res.status(200).json({
+
+        // M3 (audit): raw chunk text and the assembled context are only
+        // returned to callers presenting a valid admin bearer token. The
+        // public path returns metadata + counts so a leaked access token
+        // can no longer dump the full research library via this endpoint.
+        const adminAuth = checkAdminAuth(req.headers.authorization || '');
+        const isAdmin = adminAuth.ok;
+
+        const responseBody = {
             ok: true,
             projectId: result.project.id,
             research_available: result.docCount > 0,
             documents_available: result.docCount,
             retrieved_chunks: result.chunks.length,
-            chunks: result.chunks,
-            references: result.references,
-            research_map: result.researchMap,
-            context_text: contextText,
             used_vector: result.usedVector,
-            embedding_available: result.embeddingAvailable
-        });
+            embedding_available: result.embeddingAvailable,
+            research_map: isAdmin ? result.researchMap : null
+        };
+        if (isAdmin) {
+            responseBody.chunks = result.chunks;
+            responseBody.references = result.references;
+            responseBody.context_text = contextText;
+        }
+        return res.status(200).json(responseBody);
     } catch (error) {
         dbg.error(scope, error);
         return res.status(error.status || 500).json({ error: 'Internal error' });

@@ -1,6 +1,7 @@
 // /api/analytics.js
 const { createClient } = require('@supabase/supabase-js');
 const dbg = require('./debug');
+const { checkAdminAuth } = require('../lib/adminAuth');
 
 // Initialize Supabase Client (only if the URL is a valid HTTP/HTTPS URL —
 // otherwise fall back to console-only logging so the endpoint never crashes).
@@ -15,9 +16,35 @@ const ALLOWED_TYPES = new Set([
     'chapter_view', 'export_pdf', 'export_photo', 'login'
 ]);
 
+// In-process sliding-window rate limit for analytics POSTs. Note: on Vercel
+// each cold start is a fresh Map, so this is per-warm-instance. The Vercel KV
+// dependency is declared in package.json for a future cross-instance limit.
 const RATE_WINDOW_MS = 60000;
 const RATE_MAX_PER_WINDOW = 120;
 const rateBuckets = new Map();
+
+// Stricter rate limit for admin (GET/DELETE) requests. 10 requests per minute
+// per IP — ample for a real dashboard, hostile to brute force.
+const ADMIN_RATE_WINDOW_MS = 60000;
+const ADMIN_RATE_MAX = 10;
+const adminRateBuckets = new Map();
+
+function isAdminRateLimited(ip) {
+    const now = Date.now();
+    const bucket = adminRateBuckets.get(ip);
+    if (!bucket || now - bucket.start > ADMIN_RATE_WINDOW_MS) {
+        adminRateBuckets.set(ip, { start: now, count: 1 });
+        return false;
+    }
+    bucket.count += 1;
+    if (bucket.count > ADMIN_RATE_MAX) return true;
+    if (adminRateBuckets.size > 1000) {
+        for (const [key, b] of adminRateBuckets) {
+            if (now - b.start > ADMIN_RATE_WINDOW_MS) adminRateBuckets.delete(key);
+        }
+    }
+    return false;
+}
 
 function isRateLimited(ip) {
     const now = Date.now();
@@ -117,20 +144,33 @@ module.exports = async function handler(req, res) {
             return res.status(200).json({ ok: true, event });
         }
 
-        // Admin authentication
-        const auth = req.headers.authorization || '';
-        const token = auth.replace(/^Bearer\s+/i, '');
-        const expected = process.env.ADMIN_PASS || '';
-        if (!expected || token !== expected) {
+        // Admin authentication — timing-safe compare, length floor, rate-limited.
+        const adminIp = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
+        if (isAdminRateLimited(adminIp)) {
+            return res.status(429).json({ error: 'Too many admin requests. Slow down.' });
+        }
+        const authResult = checkAdminAuth(req.headers.authorization || '');
+        if (!authResult.ok) {
+            if (authResult.reason === 'misconfigured') {
+                dbg.error('api/analytics', 'ADMIN_PASS is unset or shorter than 16 chars; admin endpoint refused');
+                return res.status(503).json({ error: 'Admin endpoint misconfigured' });
+            }
             return res.status(401).json({ error: 'Unauthorized' });
         }
 
         if (req.method === 'DELETE') {
-            if (supabase) {
-                const { error } = await supabase.from('analytics_events').delete().neq('id', 0);
-                if (error) dbg.error('api/analytics', `Supabase clear failed: ${error.message}`);
+            if (!supabase) {
+                return res.status(503).json({ error: 'Database not configured' });
             }
-            return res.status(200).json({ ok: true, cleared: true });
+            const { error, count } = await supabase
+                .from('analytics_events')
+                .delete({ count: 'exact' })
+                .gte('created_at', '1970-01-01T00:00:00Z');
+            if (error) {
+                dbg.error('api/analytics', `Supabase clear failed: ${error.message}`);
+                return res.status(502).json({ error: 'Clear failed' });
+            }
+            return res.status(200).json({ ok: true, cleared: true, count: count || 0 });
         }
 
         // GET: Query events from Supabase for the last 30 days
