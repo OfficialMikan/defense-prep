@@ -10,7 +10,11 @@ const checks = {
     chatbot_model: chat.includes("CHATBOT_MODEL = process.env.GROQ_CHATBOT_MODEL || 'openai/gpt-oss-120b'"),
     chatbot_fallback_model: chat.includes("CHATBOT_FALLBACK_MODEL = process.env.GROQ_CHATBOT_FALLBACK_MODEL || 'openai/gpt-oss-20b'"),
     flashcard_model: chat.includes("FLASHCARD_MODEL = process.env.GROQ_FLASHCARD_MODEL || 'openai/gpt-oss-120b'"),
-    flashcard_fallback_model: chat.includes("FLASHCARD_FALLBACK_MODEL = process.env.GROQ_FLASHCARD_FALLBACK_MODEL || 'openai/gpt-oss-20b'")
+    flashcard_fallback_model: chat.includes("FLASHCARD_FALLBACK_MODEL = process.env.GROQ_FLASHCARD_FALLBACK_MODEL || 'openai/gpt-oss-20b'"),
+    openrouter_chatbot_model: chat.includes("OPENROUTER_CHATBOT_MODEL = process.env.OPENROUTER_CHATBOT_MODEL || 'openai/gpt-oss-120b'"),
+    openrouter_chatbot_fallback_model: chat.includes("OPENROUTER_CHATBOT_FALLBACK_MODEL = process.env.OPENROUTER_CHATBOT_FALLBACK_MODEL || 'openai/gpt-oss-20b'"),
+    openrouter_flashcard_model: chat.includes("OPENROUTER_FLASHCARD_MODEL = process.env.OPENROUTER_FLASHCARD_MODEL || 'openai/gpt-oss-120b'"),
+    openrouter_flashcard_fallback_model: chat.includes("OPENROUTER_FLASHCARD_FALLBACK_MODEL = process.env.OPENROUTER_FLASHCARD_FALLBACK_MODEL || 'openai/gpt-oss-20b'")
 };
 
 const fails = Object.entries(checks).filter(([, v]) => !v);

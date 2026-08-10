@@ -62,6 +62,15 @@ const OPENAI_CHATBOT_FALLBACK_MODEL = process.env.OPENAI_CHATBOT_FALLBACK_MODEL 
 const OPENAI_FLASHCARD_MODEL = process.env.OPENAI_FLASHCARD_MODEL || 'gpt-4.1-mini';
 const OPENAI_FLASHCARD_FALLBACK_MODEL = process.env.OPENAI_FLASHCARD_FALLBACK_MODEL || 'gpt-4.1-nano';
 
+// OpenRouter: third provider (free $10 credit on signup). Uses the same
+// OpenAI-compatible API format as Groq/OpenAI. OpenRouter does NOT support
+// the Groq-specific reasoning_effort / include_reasoning fields, so those are
+// only applied in callGroq().
+const OPENROUTER_CHATBOT_MODEL = process.env.OPENROUTER_CHATBOT_MODEL || 'openai/gpt-oss-120b';
+const OPENROUTER_CHATBOT_FALLBACK_MODEL = process.env.OPENROUTER_CHATBOT_FALLBACK_MODEL || 'openai/gpt-oss-20b';
+const OPENROUTER_FLASHCARD_MODEL = process.env.OPENROUTER_FLASHCARD_MODEL || 'openai/gpt-oss-120b';
+const OPENROUTER_FLASHCARD_FALLBACK_MODEL = process.env.OPENROUTER_FLASHCARD_FALLBACK_MODEL || 'openai/gpt-oss-20b';
+
 // reasoning_effort / include_reasoning are only valid for the gpt-oss and
 // qwen3 model families on Groq. Checked dynamically so an env-var override to
 // a different model doesn't send a field the model would reject.
@@ -71,6 +80,7 @@ function supportsReasoningEffort(model) {
 
 const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
 const OPENAI_ENDPOINT = process.env.OPENAI_CHAT_BASE_URL || 'https://api.openai.com/v1/chat/completions';
+const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 
 // Hard cap on total sleep time across retries/fallbacks (ms).
 const MAX_TOTAL_RETRY_MS = 2500;
@@ -247,6 +257,71 @@ async function callOpenAI({ model, messages, wantsJsonOut, seed }) {
     return { content };
 }
 
+// OpenRouter: third provider (free $10 credit on signup at openrouter.ai).
+// Same OpenAI-compatible API format. Adds the HTTP-Referer header (required
+// by OpenRouter) and does NOT send reasoning_effort (not supported there).
+async function callOpenRouter({ model, messages, wantsJsonOut, seed }) {
+    const apiKey = process.env.OPENROUTER_API_KEY;
+    if (!apiKey) {
+        const err = new Error('OPENROUTER_API_KEY not configured');
+        err.status = 500;
+        throw err;
+    }
+    const payload = {
+        model,
+        messages,
+        temperature: wantsJsonOut ? 0.9 : 0.7,
+        max_tokens: wantsJsonOut ? 280 : 350
+    };
+    if (wantsJsonOut) {
+        payload.response_format = FLASHCARD_JSON_SCHEMA;
+    }
+    if (typeof seed === 'number') payload.seed = seed;
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    let res;
+    try {
+        res = await fetch(OPENROUTER_ENDPOINT, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+                'HTTP-Referer': 'https://defenseprep.vercel.app',
+                'X-Title': 'Defense Prep'
+            },
+            body: JSON.stringify(payload),
+            signal: controller.signal
+        });
+    } catch (err) {
+        clearTimeout(timeout);
+        if (err.name === 'AbortError') {
+            const e = new Error('AI request timed out');
+            e.status = 504;
+            throw e;
+        }
+        throw err;
+    }
+    clearTimeout(timeout);
+
+    if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        const err = new Error(`OpenRouter API status ${res.status}: ${errText.slice(0, 300)}`);
+        err.status = res.status;
+        if (res.status === 429) {
+            const retryAfter = parseFloat(res.headers.get('Retry-After') || '');
+            err.retryAfterMs = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 3000;
+        }
+        throw err;
+    }
+    const data = await res.json();
+    const content = data?.choices?.[0]?.message?.content;
+    if (!content) {
+        throw new Error('OpenRouter returned an empty response');
+    }
+    return { content };
+}
+
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -273,8 +348,11 @@ async function generate({ messages, wantsJsonOut, seed }) {
     const openaiModels = wantsJsonOut
         ? [OPENAI_FLASHCARD_MODEL, OPENAI_FLASHCARD_FALLBACK_MODEL]
         : [OPENAI_CHATBOT_MODEL, OPENAI_CHATBOT_FALLBACK_MODEL];
+    const openrouterModels = wantsJsonOut
+        ? [OPENROUTER_FLASHCARD_MODEL, OPENROUTER_FLASHCARD_FALLBACK_MODEL]
+        : [OPENROUTER_CHATBOT_MODEL, OPENROUTER_CHATBOT_FALLBACK_MODEL];
 
-    // Groq first, OpenAI second (OpenAI is a backup for when credits are added).
+    // Provider chain: Groq (primary) -> OpenAI (when credits added) -> OpenRouter (free $10).
     const candidates = [];
     if (process.env.GROQ_API_KEY) {
         groqModels.filter(Boolean).forEach((model) => {
@@ -286,6 +364,12 @@ async function generate({ messages, wantsJsonOut, seed }) {
         openaiModels.filter(Boolean).forEach((model) => {
             if (!candidates.some((entry) => entry.model === model))
                 candidates.push({ provider: 'openai', model });
+        });
+    }
+    if (process.env.OPENROUTER_API_KEY) {
+        openrouterModels.filter(Boolean).forEach((model) => {
+            if (!candidates.some((entry) => entry.model === model))
+                candidates.push({ provider: 'openrouter', model });
         });
     }
     if (!candidates.length) {
@@ -312,7 +396,9 @@ async function generate({ messages, wantsJsonOut, seed }) {
                 const request = { model: candidate.model, messages, wantsJsonOut, seed };
                 const result = candidate.provider === 'groq'
                     ? await callGroq(request)
-                    : await callOpenAI(request);
+                    : candidate.provider === 'openai'
+                        ? await callOpenAI(request)
+                        : await callOpenRouter(request);
                 dbg.log('api/chat', `Success via ${candidate.provider} (${candidate.model})`);
                 return result;
             } catch (err) {
